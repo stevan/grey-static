@@ -20,7 +20,7 @@ class Flow::Subscriber {
     }
 
     method on_next ($e) {
-        if (--$count <= 0) {
+        if (--$count <= 0 && $subscription) {
             $count = $request_size;
             $subscription->request( $request_size );
         }

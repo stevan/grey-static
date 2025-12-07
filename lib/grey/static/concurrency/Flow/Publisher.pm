@@ -18,8 +18,9 @@ class Flow::Publisher {
     method drain_buffer {
         while (@buffer && $subscription) {
             my $next = shift @buffer;
+            my $sub = $subscription;  # Capture to avoid undefined value if subscription is cleared
             $executor->next_tick(sub {
-                $subscription->offer( $next )
+                $sub->offer( $next ) if $sub;
             });
         }
     }
@@ -56,16 +57,25 @@ class Flow::Publisher {
         $executor->run;
     }
 
-    method close {
+    method close ($callback = undef) {
         if ($subscription) {
-            if (@buffer) {
-                @buffer = ();
-            }
+            # Run executor first to complete any pending subscriptions
+            $executor->run;
+
+            # Drain any buffered items
+            $self->drain_buffer;
+
+            # Then schedule completion
             $executor->next_tick(sub {
                 $subscription->on_completed;
+                $callback->() if $callback;
             });
 
             $executor->run;
+        }
+        elsif ($callback) {
+            # No subscription but callback provided
+            $callback->();
         }
         $executor->shutdown;
     }

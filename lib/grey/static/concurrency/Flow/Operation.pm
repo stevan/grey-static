@@ -42,7 +42,7 @@ class Flow::Operation {
     }
 
     method unsubscribe ($downstream) {
-        $upstream->cancel;
+        $upstream->cancel if $upstream;
         $upstream = undef;
     }
 
@@ -73,7 +73,7 @@ class Flow::Operation {
 
     method on_error ($e) {
         $executor->next_tick(sub {
-            $downstream->on_error;
+            $downstream->on_error($e);
         });
     }
 
