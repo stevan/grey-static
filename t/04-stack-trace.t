@@ -97,4 +97,62 @@ subtest 'set_backtrace function' => sub {
     pass('set_backtrace toggles without error');
 };
 
+subtest 'argument formatting' => sub {
+    # Test _format_arg directly
+    is(BetterErrors::_format_arg(undef), 'undef', 'formats undef');
+    is(BetterErrors::_format_arg(42), '42', 'formats integer');
+    is(BetterErrors::_format_arg(3.14), '3.14', 'formats float');
+    is(BetterErrors::_format_arg("hello"), '"hello"', 'formats string with quotes');
+    is(BetterErrors::_format_arg(""), '""', 'formats empty string');
+
+    # Test reference formatting
+    my $hashref = { foo => 1 };
+    my $formatted = BetterErrors::_format_arg($hashref);
+    like($formatted, qr/^HASH\(0x[0-9a-f]+\)$/, 'formats hashref with address');
+
+    my $arrayref = [1, 2, 3];
+    $formatted = BetterErrors::_format_arg($arrayref);
+    like($formatted, qr/^ARRAY\(0x[0-9a-f]+\)$/, 'formats arrayref with address');
+
+    # Test object formatting
+    my $obj = bless {}, 'MyClass';
+    $formatted = BetterErrors::_format_arg($obj);
+    like($formatted, qr/^MyClass\(0x[0-9a-f]+\)$/, 'formats object with class and address');
+
+    # Test string escaping
+    is(BetterErrors::_format_arg("line1\nline2"), '"line1\\nline2"', 'escapes newlines');
+    is(BetterErrors::_format_arg("tab\there"), '"tab\\there"', 'escapes tabs');
+};
+
+subtest '_format_args' => sub {
+    is(BetterErrors::_format_args(undef), '', 'returns empty for undef');
+    is(BetterErrors::_format_args([]), '', 'returns empty for empty array');
+
+    my $result = BetterErrors::_format_args([1, "two", undef]);
+    is($result, '(1, "two", undef)', 'formats multiple args');
+};
+
+subtest 'backtrace shows args and source' => sub {
+    my $formatter = BetterErrors::ErrorFormatter->new(context_lines => 1);
+
+    # Create mock frames with args
+    my @frames = (
+        BetterErrors::StackFrame->new(
+            package    => 'main',
+            filename   => '/nonexistent/test.pl',
+            line       => 10,
+            subroutine => 'main::foo',
+            hasargs    => 1,
+            args       => [42, "hello"],
+        ),
+    );
+
+    BetterErrors::set_backtrace(1);
+    my $output = $formatter->format_error("Test error", "/nonexistent", 1, \@frames);
+
+    like($output, qr/main::foo/, 'contains subroutine name');
+    like($output, qr/42/, 'contains numeric arg');
+    like($output, qr/"hello"/, 'contains string arg');
+};
+
 done_testing;

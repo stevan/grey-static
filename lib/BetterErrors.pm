@@ -1,5 +1,6 @@
 use v5.40;
 use experimental qw(class);
+use Scalar::Util qw(refaddr blessed);
 
 package BetterErrors;
 
@@ -75,6 +76,7 @@ class BetterErrors::StackFrame {
     field $subroutine :param;
     field $hasargs :param = 0;
     field $wantarray :param = undef;
+    field $args :param = undef;  # arrayref of arguments
 
     method package    { $package }
     method filename   { $filename }
@@ -82,6 +84,7 @@ class BetterErrors::StackFrame {
     method subroutine { $subroutine }
     method hasargs    { $hasargs }
     method wantarray  { $wantarray }
+    method args       { $args }
 
     method short_sub {
         # Return just the subroutine name without package for display
@@ -131,9 +134,32 @@ class BetterErrors::ErrorFormatter {
         for my $frame (@$frames) {
             my $num_str = sprintf("%4d", $frame_num);
             $output .= $self->color('bold_blue', $num_str) . ': ';
-            $output .= $self->color('bold', $frame->short_sub) . "\n";
+            $output .= $self->color('bold', $frame->short_sub);
+
+            # Add formatted arguments if available
+            if ($frame->args && @{$frame->args}) {
+                $output .= $self->color('cyan', BetterErrors::_format_args($frame->args));
+            }
+            $output .= "\n";
+
+            # Location line
             $output .= '             ' . $self->color('cyan', 'at ');
             $output .= $frame->filename . ':' . $frame->line . "\n";
+
+            # Show source context for this frame
+            my $source = $self->_get_source($frame->filename);
+            if ($source && $frame->line > 0) {
+                my $line_content = $source->get_line($frame->line);
+                if (defined $line_content) {
+                    my $line_num = $frame->line;
+                    my $gutter_width = length($line_num);
+                    $output .= '             ';
+                    $output .= $self->color('bold_blue', "$line_num | ");
+                    $output .= "$line_content\n";
+                }
+            }
+
+            $output .= "\n" if $frame_num < $#$frames;  # Add spacing between frames
             $frame_num++;
         }
 
@@ -200,7 +226,53 @@ class BetterErrors::ErrorFormatter {
     }
 }
 
-# Capture the current stack trace
+# Format a single argument value for display
+sub _format_arg {
+    my ($arg) = @_;
+
+    return 'undef' unless defined $arg;
+
+    my $ref = ref $arg;
+    if (!$ref) {
+        # Scalar value - truncate if too long
+        my $str = "$arg";
+        if (length($str) > 50) {
+            $str = substr($str, 0, 47) . '...';
+        }
+        # Quote strings that look like strings
+        if ($str =~ /[^0-9.\-+eE]/ || $str eq '') {
+            $str =~ s/\\/\\\\/g;
+            $str =~ s/"/\\"/g;
+            $str =~ s/\n/\\n/g;
+            $str =~ s/\t/\\t/g;
+            return qq{"$str"};
+        }
+        return $str;
+    }
+
+    # It's a reference
+    my $addr = refaddr($arg);
+    my $addr_hex = sprintf("0x%x", $addr);
+
+    if (blessed($arg)) {
+        # It's an object
+        return "$ref($addr_hex)";
+    }
+
+    # Plain reference
+    return "$ref($addr_hex)";
+}
+
+# Format all arguments for a frame
+sub _format_args {
+    my ($args) = @_;
+    return '' unless $args && @$args;
+
+    my @formatted = map { _format_arg($_) } @$args;
+    return '(' . join(', ', @formatted) . ')';
+}
+
+# Capture the current stack trace using DB package to get args
 sub _capture_stack {
     my ($skip_levels) = @_;
     $skip_levels //= 0;
@@ -208,25 +280,35 @@ sub _capture_stack {
     my @frames;
     my $level = $skip_levels;
 
-    while (my @caller_info = caller($level)) {
-        my ($package, $filename, $line, $subroutine, $hasargs, $wantarray) = @caller_info;
+    # Use package DB to enable @DB::args capture
+    package DB {
+        while (my @caller_info = caller($level)) {
+            my ($package, $filename, $line, $subroutine, $hasargs, $wantarray) = @caller_info;
 
-        # Skip internal BetterErrors frames and eval frames
-        my $skip = 0;
-        $skip = 1 if $subroutine && $subroutine =~ /^BetterErrors::/;
-        $skip = 1 if $filename =~ /^\(eval/;
+            # Capture args if available (copy to avoid issues)
+            my @args_copy;
+            if ($hasargs && @DB::args) {
+                @args_copy = @DB::args;
+            }
 
-        unless ($skip) {
-            push @frames, BetterErrors::StackFrame->new(
-                package    => $package,
-                filename   => $filename,
-                line       => $line,
-                subroutine => $subroutine // "${package}::__ANON__",
-                hasargs    => $hasargs // 0,
-                wantarray  => $wantarray,
-            );
+            # Skip internal BetterErrors frames and eval frames
+            my $skip = 0;
+            $skip = 1 if $subroutine && $subroutine =~ /^BetterErrors::/;
+            $skip = 1 if $filename =~ /^\(eval/;
+
+            unless ($skip) {
+                push @frames, BetterErrors::StackFrame->new(
+                    package    => $package,
+                    filename   => $filename,
+                    line       => $line,
+                    subroutine => $subroutine // "${package}::__ANON__",
+                    hasargs    => $hasargs // 0,
+                    wantarray  => $wantarray,
+                    args       => $hasargs ? \@args_copy : undef,
+                );
+            }
+            $level++;
         }
-        $level++;
     }
 
     return \@frames;
