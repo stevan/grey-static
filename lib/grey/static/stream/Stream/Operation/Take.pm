@@ -13,6 +13,7 @@ class Stream::Operation::Take :isa(Stream::Operation::Node) {
 
     method has_next {
         return false if $taken >= $amount;
+        return false unless $source->has_next;
         $next = $source->next;
         $taken++;
         return true;
