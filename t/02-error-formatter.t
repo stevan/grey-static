@@ -30,9 +30,9 @@ subtest 'ErrorFormatter basic formatting' => sub {
     my $output = $formatter->format_error("Test error message", $filename, 6);
 
     like($output, qr/error: Test error message/, 'contains error message');
-    like($output, qr/-->.*:\d+/, 'contains file:line reference');
+    like($output, qr/╭─\[.*:\d+\]/, 'contains file:line reference with box drawing');
     like($output, qr/\$x->method/, 'contains the error line source');
-    like($output, qr/\^+/, 'contains pointer characters');
+    like($output, qr/╰─+/, 'contains box drawing pointer');
     like($output, qr/error occurred here/, 'contains error location text');
 };
 
@@ -57,7 +57,7 @@ subtest 'handles missing file gracefully' => sub {
     my $output = $formatter->format_error("No file", "/nonexistent/file.pl", 10);
 
     like($output, qr/error: No file/, 'contains error message');
-    like($output, qr/-->.*nonexistent/, 'contains file reference');
+    like($output, qr/╭─\[.*nonexistent/, 'contains file reference with box drawing');
     # Should not die, just skip source context
 };
 

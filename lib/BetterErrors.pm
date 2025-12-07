@@ -10,6 +10,7 @@ our $VERSION = '0.01';
 my %COLORS = (
     reset     => "\e[0m",
     bold      => "\e[1m",
+    dim       => "\e[2m",
     red       => "\e[31m",
     green     => "\e[32m",
     yellow    => "\e[33m",
@@ -20,6 +21,20 @@ my %COLORS = (
     bold_red  => "\e[1;31m",
     bold_blue => "\e[1;34m",
     bold_cyan => "\e[1;36m",
+);
+
+# Unicode box drawing characters
+my %BOX = (
+    v_line     => '│',   # vertical line
+    h_line     => '─',   # horizontal line
+    top_left   => '╭',   # rounded top-left corner
+    top_right  => '╮',   # rounded top-right corner
+    bot_left   => '╰',   # rounded bottom-left corner
+    bot_right  => '╯',   # rounded bottom-right corner
+    tee_right  => '├',   # tee pointing right
+    tee_left   => '┤',   # tee pointing left
+    arrow      => '▶',   # arrow pointer
+    dot        => '•',   # bullet point
 );
 
 # Global source cache
@@ -108,14 +123,17 @@ class BetterErrors::ErrorFormatter {
         $output .= $self->color('bold_red', 'error') . ': ';
         $output .= $self->color('bold', $message) . "\n";
 
-        # Location: --> file:line
-        $output .= '  ' . $self->color('bold_blue', '-->') . ' ';
-        $output .= "$file:$line\n";
+        # Location header with box drawing
+        $output .= '   ' . $self->color('bold_blue', "$BOX{top_left}$BOX{h_line}\[") ;
+        $output .= $self->color('cyan', "$file:$line");
+        $output .= $self->color('bold_blue', ']') . "\n";
 
         # Get source context
         my $source = $self->_get_source($file);
         if ($source && $line > 0) {
             $output .= $self->_format_source_context($source, $line);
+        } else {
+            $output .= '   ' . $self->color('bold_blue', $BOX{bot_left}) . "\n";
         }
 
         # Add stack backtrace if frames provided
@@ -128,12 +146,21 @@ class BetterErrors::ErrorFormatter {
 
     method _format_backtrace ($frames) {
         my $output = "\n";
-        $output .= $self->color('bold', 'stack backtrace:') . "\n";
+        $output .= $self->color('bold', "stack backtrace:") . "\n";
 
         my $frame_num = 0;
+        my $last_frame = $#$frames;
+
         for my $frame (@$frames) {
-            my $num_str = sprintf("%4d", $frame_num);
-            $output .= $self->color('bold_blue', $num_str) . ': ';
+            my $is_last = ($frame_num == $last_frame);
+
+            # Frame connector
+            my $connector = $is_last ? $BOX{bot_left} : $BOX{tee_right};
+            my $continue  = $is_last ? ' ' : $BOX{v_line};
+
+            # Frame number and subroutine
+            $output .= '   ' . $self->color('bold_blue', "$connector$BOX{h_line}");
+            $output .= $self->color('bold_cyan', "[$frame_num]") . ' ';
             $output .= $self->color('bold', $frame->short_sub);
 
             # Add formatted arguments if available
@@ -143,7 +170,8 @@ class BetterErrors::ErrorFormatter {
             $output .= "\n";
 
             # Location line
-            $output .= '             ' . $self->color('cyan', 'at ');
+            $output .= '   ' . $self->color('bold_blue', "$continue    ");
+            $output .= $self->color('cyan', 'at ');
             $output .= $frame->filename . ':' . $frame->line . "\n";
 
             # Show source context for this frame
@@ -152,14 +180,13 @@ class BetterErrors::ErrorFormatter {
                 my $line_content = $source->get_line($frame->line);
                 if (defined $line_content) {
                     my $line_num = $frame->line;
-                    my $gutter_width = length($line_num);
-                    $output .= '             ';
-                    $output .= $self->color('bold_blue', "$line_num | ");
-                    $output .= "$line_content\n";
+                    $output .= '   ' . $self->color('bold_blue', "$continue    ");
+                    $output .= $self->color('dim', "$line_num $BOX{v_line} ");
+                    $output .= $self->color('dim', $line_content) . "\n";
                 }
             }
 
-            $output .= "\n" if $frame_num < $#$frames;  # Add spacing between frames
+            $output .= "\n" if !$is_last;  # Add spacing between frames
             $frame_num++;
         }
 
@@ -185,9 +212,7 @@ class BetterErrors::ErrorFormatter {
 
         # Calculate gutter width for line numbers
         my $gutter_width = length($end);
-
-        # Empty gutter line
-        $output .= $self->color('bold_blue', ' ' x ($gutter_width + 1) . '|') . "\n";
+        my $gutter_pad = ' ' x $gutter_width;
 
         for my $num ($start .. $end) {
             my $line_content = $source->get_line($num) // '';
@@ -195,11 +220,10 @@ class BetterErrors::ErrorFormatter {
 
             if ($num == $error_line) {
                 # Highlight the error line
-                $output .= $self->color('bold_blue', "$gutter | ");
+                $output .= $self->color('bold_blue', " $gutter $BOX{v_line} ");
                 $output .= $self->color('bold', $line_content) . "\n";
 
-                # Add the pointer line
-                my $pointer_padding = ' ' x ($gutter_width + 1);
+                # Add the pointer line with box drawing
                 my $content_length = length($line_content);
                 $content_length = 1 if $content_length == 0;
 
@@ -208,19 +232,19 @@ class BetterErrors::ErrorFormatter {
                 my $pointer_length = $content_length - $leading_space;
                 $pointer_length = 1 if $pointer_length < 1;
 
-                $output .= $self->color('bold_blue', "$pointer_padding| ");
+                $output .= $self->color('bold_blue', "   $gutter_pad $BOX{v_line} ");
                 $output .= ' ' x $leading_space;
-                $output .= $self->color('bold_red', '^' x $pointer_length);
-                $output .= ' ' . $self->color('bold_red', 'error occurred here');
+                $output .= $self->color('bold_red', "$BOX{bot_left}" . ($BOX{h_line} x ($pointer_length - 1)));
+                $output .= $self->color('bold_red', " error occurred here");
                 $output .= "\n";
             } else {
-                $output .= $self->color('bold_blue', "$gutter | ");
-                $output .= "$line_content\n";
+                $output .= $self->color('bold_blue', " $gutter $BOX{v_line} ");
+                $output .= $self->color('dim', $line_content) . "\n";
             }
         }
 
-        # Closing gutter line
-        $output .= $self->color('bold_blue', ' ' x ($gutter_width + 1) . '|') . "\n";
+        # Closing line
+        $output .= $self->color('bold_blue', "   $gutter_pad $BOX{bot_left}") . "\n";
 
         return $output;
     }
