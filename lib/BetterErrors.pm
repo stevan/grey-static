@@ -124,7 +124,7 @@ class BetterErrors::ErrorFormatter {
         $output .= $self->color('bold', $message) . "\n";
 
         # Location header with box drawing
-        $output .= '   ' . $self->color('bold_blue', "$BOX{top_left}$BOX{h_line}\[") ;
+        $output .= '   ' . $self->color('bold_blue', " $BOX{top_left}$BOX{h_line}\[") ;
         $output .= $self->color('cyan', "$file:$line");
         $output .= $self->color('bold_blue', ']') . "\n";
 
@@ -181,8 +181,8 @@ class BetterErrors::ErrorFormatter {
                 if (defined $line_content) {
                     my $line_num = $frame->line;
                     $output .= '   ' . $self->color('bold_blue', "$continue    ");
-                    $output .= $self->color('dim', "$line_num $BOX{v_line} ");
-                    $output .= $self->color('dim', $line_content) . "\n";
+                    $output .= $self->color('dim', "$line_num $BOX{v_line}");
+                    $output .= $self->color('dim', $line_content);
                 }
             }
 
@@ -190,7 +190,7 @@ class BetterErrors::ErrorFormatter {
             $frame_num++;
         }
 
-        return $output;
+        return $output."\n";
     }
 
     method _get_source ($file) {
@@ -220,7 +220,7 @@ class BetterErrors::ErrorFormatter {
 
             if ($num == $error_line) {
                 # Highlight the error line
-                $output .= $self->color('bold_blue', " $gutter $BOX{v_line} ");
+                $output .= $self->color('bold_blue', " $gutter $BOX{v_line}");
                 $output .= $self->color('bold', $line_content) . "\n";
 
                 # Add the pointer line with box drawing
@@ -232,19 +232,19 @@ class BetterErrors::ErrorFormatter {
                 my $pointer_length = $content_length - $leading_space;
                 $pointer_length = 1 if $pointer_length < 1;
 
-                $output .= $self->color('bold_blue', "   $gutter_pad $BOX{v_line} ");
+                $output .= $self->color('bold_blue', " $gutter_pad $BOX{v_line}");
                 $output .= ' ' x $leading_space;
                 $output .= $self->color('bold_red', "$BOX{bot_left}" . ($BOX{h_line} x ($pointer_length - 1)));
                 $output .= $self->color('bold_red', " error occurred here");
                 $output .= "\n";
             } else {
-                $output .= $self->color('bold_blue', " $gutter $BOX{v_line} ");
+                $output .= $self->color('bold_blue', " $gutter $BOX{v_line}");
                 $output .= $self->color('dim', $line_content) . "\n";
             }
         }
 
         # Closing line
-        $output .= $self->color('bold_blue', "   $gutter_pad $BOX{bot_left}") . "\n";
+        $output .= $self->color('bold_blue', " $gutter_pad $BOX{bot_left}") . "\n";
 
         return $output;
     }
