@@ -12,6 +12,7 @@ Currently implemented features:
 - **logging** - Debug logging utilities
 - **stream** - Java-style Stream API with sources, operations, and collectors
 - **io::stream** - IO streams for files and directories (IO::Stream::Files, IO::Stream::Directories)
+- **concurrency** - Reactive Flow API (Flow, Flow::Publisher, Flow::Subscriber, Flow::Executor)
 
 ## Requirements
 
@@ -48,6 +49,8 @@ lib/grey/static/stream.pm             # Stream feature loader
 lib/grey/static/stream/               # Stream classes (mirroring p7 structure)
 lib/grey/static/io/stream.pm          # IO stream feature loader
 lib/grey/static/io/stream/            # IO stream classes
+lib/grey/static/concurrency.pm        # Concurrency feature loader
+lib/grey/static/concurrency/          # Flow classes
 ```
 
 ### grey::static
@@ -141,3 +144,5 @@ This project ports code from the p7 project located at `/Users/stevan/Projects/p
 - Stream tests: `/Users/stevan/Projects/perl/p7/t/org/p7/util/stream/`
 - IO Stream: `/Users/stevan/Projects/perl/p7/lib/org/p7/io/stream/`
 - IO Stream tests: `/Users/stevan/Projects/perl/p7/t/org/p7/io/stream/`
+- Concurrency: `/Users/stevan/Projects/perl/p7/lib/org/p7/util/concurrent/`
+- Concurrency tests: `/Users/stevan/Projects/perl/p7/t/org/p7/util/concurrent/`
