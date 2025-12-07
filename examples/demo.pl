@@ -1,14 +1,17 @@
 #!/usr/bin/env perl
 use v5.40;
 use lib '../lib';
-use BetterErrors;
+use grey::static qw[diagnostics];
 
 # Simulating a typical application structure with nested calls
 
 sub get_user_from_db {
     my ($id) = @_;
     # Simulate a database lookup that returns undef for invalid IDs
-    return undef if $id < 0;
+    if ($id < 0) {
+        warn "Invalid user ID: $id";
+        return undef;
+    }
     return { name => "User $id", id => $id, email => "user$id\@example.com" };
 }
 
@@ -31,5 +34,5 @@ sub handle_request {
     say "Processing user: $user->{name}";
 }
 
-# Main entry point - this will trigger a beautiful error
+# Main entry point - this will trigger a warning, then an error
 handle_request(-1);
