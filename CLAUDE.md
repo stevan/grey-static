@@ -11,11 +11,12 @@ Currently implemented features:
 - **functional** - Function, BiFunction, Predicate, Consumer, BiConsumer, Supplier, Comparator
 - **logging** - Debug logging utilities
 - **stream** - Java-style Stream API with sources, operations, and collectors
+- **io::stream** - IO streams for files and directories (IO::Stream::Files, IO::Stream::Directories)
 
 ## Requirements
 
 - Perl v5.40+ (uses `class` feature from `experimental`)
-- No CPAN dependencies beyond core modules
+- Path::Tiny (for io::stream feature)
 
 ## Commands
 
@@ -45,6 +46,8 @@ lib/grey/static/functional.pm         # Functional classes loader
 lib/grey/static/functional/           # Individual functional classes
 lib/grey/static/stream.pm             # Stream feature loader
 lib/grey/static/stream/               # Stream classes (mirroring p7 structure)
+lib/grey/static/io/stream.pm          # IO stream feature loader
+lib/grey/static/io/stream/            # IO stream classes
 ```
 
 ### grey::static
@@ -73,11 +76,12 @@ $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
 ## Usage
 
 ```perl
-use grey::static qw[diagnostics functional stream];
+use grey::static qw[diagnostics functional stream io::stream];
 
 # Errors and warnings now display with source context and stack traces
 # Functional classes (Function, Predicate, etc.) are globally available
 # Stream API is available
+# IO::Stream::Files and IO::Stream::Directories are available
 ```
 
 ## Design Document
@@ -135,3 +139,5 @@ This project ports code from the p7 project located at `/Users/stevan/Projects/p
 - Functional: `/Users/stevan/Projects/perl/p7/lib/org/p7/util/function/`
 - Stream: `/Users/stevan/Projects/perl/p7/lib/org/p7/util/stream/`
 - Stream tests: `/Users/stevan/Projects/perl/p7/t/org/p7/util/stream/`
+- IO Stream: `/Users/stevan/Projects/perl/p7/lib/org/p7/io/stream/`
+- IO Stream tests: `/Users/stevan/Projects/perl/p7/t/org/p7/io/stream/`
