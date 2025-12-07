@@ -6,6 +6,9 @@ package grey::static;
 
 our $VERSION = '0.01';
 
+# Load core utilities
+load_module('importer');
+
 sub import {
     my ($class, @features) = @_;
     my ($caller_package, $caller_file) = caller;
