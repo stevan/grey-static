@@ -4,7 +4,7 @@ use Test::Differences;
 
 use grey::static qw[ functional ];
 
-my @expected = qw[ 510 1012 105 1020 THEN(100200) ];
+my @expected = qw[ 510 1012 510 1020 THEN(100200) ];
 
 my @got;
 
@@ -19,9 +19,9 @@ isa_ok($b2, 'Function');
 push @got => $b2->apply(12);
 
 my $b3 = $b1->rcurry(10);
-isa_ok($b2, 'Function');
+isa_ok($b3, 'Function');
 
-push @got => $b2->apply(5);
+push @got => $b3->apply(5);
 
 my $b4 = $b2->curry(20);
 isa_ok($b4, 'Supplier');
