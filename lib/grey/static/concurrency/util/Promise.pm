@@ -17,14 +17,15 @@ class Promise {
     field @rejected;
 
     ADJUST {
-        $executor isa Executor || confess 'The `executor` param must be a Executor';
+        $executor isa Executor || die 'The `executor` param must be a Executor';
 
         $status = IN_PROGRESS;
     }
 
-    method status { $status }
-    method result { $result }
-    method error  { $error  }
+    method status   { $status }
+    method result   { $result }
+    method error    { $error  }
+    method executor { $executor }
 
     method is_in_progress { $status eq IN_PROGRESS }
     method is_resolved    { $status eq RESOLVED    }
@@ -42,6 +43,7 @@ class Promise {
 
             if ($error) {
                 $p->reject( $error );
+                return;
             }
 
             if ( $result isa Promise ) {
@@ -60,13 +62,13 @@ class Promise {
     method then ($then, $catch=undef) {
         my $p = $self->new( executor => $executor );
         push @resolved => wrap( $p, $then );
-        push @rejected => wrap( $p, $catch // sub {} );
+        push @rejected => wrap( $p, $catch // sub ($e) { die "$e\n" } );
         $self->_notify unless $self->is_in_progress;
         $p;
     }
 
     method resolve ($_result) {
-        $status eq IN_PROGRESS || confess "Cannot resolve. Already ($status)";
+        $status eq IN_PROGRESS || die "Cannot resolve. Already ($status)";
 
         $status = RESOLVED;
         $result = $_result;
@@ -75,7 +77,7 @@ class Promise {
     }
 
     method reject ($_error) {
-        $status eq IN_PROGRESS || confess "Cannot reject. Already ($status)";
+        $status eq IN_PROGRESS || die "Cannot reject. Already ($status)";
 
         $status = REJECTED;
         $error  = $_error;
@@ -96,7 +98,7 @@ class Promise {
             @cbs   = @rejected;
         }
         else {
-            confess "Bad Notify State ($status)";
+            die "Bad Notify State ($status)";
         }
 
         @resolved = ();
