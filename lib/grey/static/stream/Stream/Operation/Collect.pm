@@ -1,5 +1,5 @@
 
-use v5.40;
+use v5.42;
 use experimental qw[ class ];
 
 class Stream::Operation::Collect :isa(Stream::Operation::Terminal) {

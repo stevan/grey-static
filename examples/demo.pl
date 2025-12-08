@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use v5.40;
+use v5.42;
 use lib '../lib';
 use grey::static qw[diagnostics];
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use v5.40;
+use v5.42;
 use Test::More;
 
 use grey::static::source;
@@ -23,7 +23,7 @@ my $line1 = $source->get_line(1);
 is($line1, '#!/usr/bin/env perl', 'get_line(1) returns shebang');
 
 my $line2 = $source->get_line(2);
-is($line2, 'use v5.40;', 'get_line(2) returns use statement');
+is($line2, 'use v5.42;', 'get_line(2) returns use statement');
 
 # Test out of bounds
 is($source->get_line(0), undef, 'get_line(0) returns undef');

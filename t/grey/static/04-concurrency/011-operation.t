@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 
-use v5.40;
-use experimental qw(builtin);
+use v5.42;
 
 use Test::More;
 use Test::Exception;
@@ -10,7 +9,7 @@ use grey::static qw[ functional concurrency ];
 
 # Create a test operation that doubles values
 package TestOperation {
-    use v5.40;
+    use v5.42;
     use experimental 'class';
 
     class TestOperation :isa(Flow::Operation) {
@@ -22,7 +21,7 @@ package TestOperation {
 
 # Create a test operation that filters out odds
 package FilterOddsOperation {
-    use v5.40;
+    use v5.42;
     use experimental 'class';
 
     class FilterOddsOperation :isa(Flow::Operation) {
@@ -34,7 +33,7 @@ package FilterOddsOperation {
 
 # Create a test operation that generates multiple outputs
 package MultiplyingOperation {
-    use v5.40;
+    use v5.42;
     use experimental 'class';
 
     class MultiplyingOperation :isa(Flow::Operation) {

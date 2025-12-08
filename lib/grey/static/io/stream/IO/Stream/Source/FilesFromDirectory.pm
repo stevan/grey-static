@@ -1,5 +1,5 @@
 
-use v5.40;
+use v5.42;
 use experimental qw[ class ];
 
 class IO::Stream::Source::FilesFromDirectory :isa(Stream::Source) {

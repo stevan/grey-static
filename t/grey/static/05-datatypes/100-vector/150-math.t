@@ -1,4 +1,5 @@
-use v5.40;
+use v5.42;
+use utf8;
 use experimental qw[ class ];
 
 use Test::More;
@@ -201,7 +202,7 @@ subtest 'div method - with another vector' => sub {
     my $v4 = Vector->initialize(3, [ 2, 3, 4 ] );
     my $divided_float = $v3->div($v4);
     is( $divided_float->at(0), 3.5, 'first elements: 7 / 2 = 3.5' );
-    is( $divided_float->at(1), 2.66666666666667, 'second elements: 8 / 3 ≈ 2.667' );
+    is( $divided_float->at(1), 2.66666666666667, 'second elements: 8 / 3 ~~ 2.667' );
     is( $divided_float->at(2), 2.25, 'third elements: 9 / 4 = 2.25' );
 };
 

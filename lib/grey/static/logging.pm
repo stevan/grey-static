@@ -1,5 +1,6 @@
-use v5.40;
-use experimental qw[ builtin ];
+use v5.42;
+use utf8;
+use experimental qw(builtin);
 use builtin      qw[ export_lexically ];
 no warnings 'shadow';
 

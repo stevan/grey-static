@@ -1,4 +1,5 @@
-use v5.40;
+use v5.42;
+use utf8;
 use experimental qw[ class ];
 
 use Test::More;
@@ -274,7 +275,7 @@ subtest 'div method - with another matrix' => sub {
     my $m4 = Matrix->new( shape => [2, 2], data => [2, 3, 4, 5] );
     my $divided_float = $m3->div($m4);
     is( $divided_float->at(0, 0), 3.5, 'element at (0,0): 7 / 2 = 3.5' );
-    is( $divided_float->at(0, 1), 2.66666666666667, 'element at (0,1): 8 / 3 ≈ 2.667' );
+    is( $divided_float->at(0, 1), 2.66666666666667, 'element at (0,1): 8 / 3 ~~ 2.667' );
     is( $divided_float->at(1, 0), 2.25, 'element at (1,0): 9 / 4 = 2.25' );
     is( $divided_float->at(1, 1), 2, 'element at (1,1): 10 / 5 = 2' );
 };

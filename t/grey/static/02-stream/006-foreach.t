@@ -1,6 +1,6 @@
 #!perl
 
-use v5.40;
+use v5.42;
 use experimental qw[ class ];
 
 use Test::More;

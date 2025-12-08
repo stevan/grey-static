@@ -1,5 +1,6 @@
 
-use v5.40;
+use v5.42;
+use utf8;
 use experimental qw[ class ];
 
 use importer 'List::Util' => qw[ reduce ];
@@ -463,7 +464,7 @@ class Tensor {
 
 
 package Tensor::Ops {
-    use v5.40;
+    use v5.42;
 
     ## -------------------------------------------------------------------------
     ## Math operations

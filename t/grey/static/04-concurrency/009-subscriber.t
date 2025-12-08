@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 
-use v5.40;
-use experimental qw(builtin);
+use v5.42;
 
 use Test::More;
 use Test::Exception;

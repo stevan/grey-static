@@ -1,5 +1,5 @@
-use v5.40;
-use experimental qw[ builtin ];
+use v5.42;
+use experimental qw(builtin);
 use builtin      qw[ export_lexically load_module ];
 
 package importer {

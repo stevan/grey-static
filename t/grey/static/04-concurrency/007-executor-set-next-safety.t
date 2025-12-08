@@ -1,7 +1,7 @@
 #!perl
 # Unit tests for Flow::Executor set_next cycle detection
 
-use v5.40;
+use v5.42;
 use experimental qw[ class try ];
 
 use Test::More;

@@ -1,4 +1,5 @@
-use v5.40;
+use v5.42;
+use utf8;
 use experimental qw[ class ];
 
 use Test::More;
@@ -127,7 +128,7 @@ subtest 'binary_op method - with floating point numbers' => sub {
     # Test division with floating point
     my $divided = $v1->binary_op(sub { $_[0] / $_[1] }, $v2);
     is( $divided->at(0), 0.75, 'first elements: 1.5 / 2.0 = 0.75' );
-    is( $divided->at(1), 0.833333333333333, 'second elements: 2.5 / 3.0 ≈ 0.833' );
+    is( $divided->at(1), 0.833333333333333, 'second elements: 2.5 / 3.0 ~~ 0.833' );
 };
 
 subtest 'binary_op method - edge cases' => sub {

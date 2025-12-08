@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use v5.40;
+use v5.42;
 no warnings 'shadow';  # Suppress builtin shadow warnings
 use Test::More;
 
