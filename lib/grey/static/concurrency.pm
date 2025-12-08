@@ -74,11 +74,42 @@ grey::static::concurrency - Reactive flow-based concurrency primitives
 =head1 DESCRIPTION
 
 The C<concurrency> feature provides reactive, flow-based concurrency primitives
-based on the Reactive Streams specification. It implements a publisher-subscriber
-pattern with backpressure support through demand-based flow control.
+and async utilities. It includes:
 
-The main class is C<Flow>, which provides a fluent API for building reactive
-pipelines. Operations are executed asynchronously using an event loop executor.
+=over 4
+
+=item *
+
+B<Reactive Streams> - Flow API with publisher-subscriber pattern and backpressure
+
+=item *
+
+B<Promises> - JavaScript-style promises for async operations
+
+=item *
+
+B<Executor> - Event loop for scheduling async callbacks
+
+=back
+
+=head1 SUB-FEATURES
+
+=head2 concurrency::reactive
+
+Provides the reactive Flow API based on the Reactive Streams specification.
+Includes Flow, Flow::Publisher, Flow::Subscriber, and related classes.
+
+    use grey::static qw[ functional concurrency::reactive ];
+
+=head2 concurrency::util
+
+Provides concurrency utilities including Executor and Promise.
+
+    use grey::static qw[ concurrency::util ];
+
+To use both:
+
+    use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 =head1 CLASSES
 
@@ -387,6 +418,168 @@ Filters elements using a C<Predicate>.
 
 Operations implement both publisher and subscriber interfaces, acting as
 intermediaries in the flow pipeline.
+
+=head2 Promise
+
+Asynchronous promise implementation for handling eventual values or errors.
+
+=head3 Constructor
+
+    my $promise = Promise->new(executor => $executor);
+
+Creates a new promise in the IN_PROGRESS state.
+
+=head3 States
+
+Promises have three states:
+
+=over 4
+
+=item C<Promise-E<gt>IN_PROGRESS>
+
+Initial state - pending resolution or rejection.
+
+=item C<Promise-E<gt>RESOLVED>
+
+Successfully resolved with a value.
+
+=item C<Promise-E<gt>REJECTED>
+
+Rejected with an error.
+
+=back
+
+=head3 Methods
+
+=over 4
+
+=item C<< then($on_fulfilled, $on_rejected) >>
+
+Registers callbacks for promise resolution or rejection. Returns a new promise
+for chaining.
+
+    $promise
+        ->then(sub ($x) { $x * 2 })
+        ->then(
+            sub ($value) { say "Success: $value" },
+            sub ($error) { say "Error: $error" }
+        );
+
+=item C<< resolve($value) >>
+
+Resolves the promise with a value. Can only be called once.
+
+=item C<< reject($error) >>
+
+Rejects the promise with an error. Can only be called once.
+
+=item C<is_in_progress()>, C<is_resolved()>, C<is_rejected()>
+
+Check the promise's current state.
+
+=item C<status()>, C<result()>, C<error()>, C<executor()>
+
+Access promise state and data.
+
+=back
+
+B<Key Features:>
+
+=over 4
+
+=item *
+
+Promise chaining with C<then()>
+
+=item *
+
+Automatic error propagation
+
+=item *
+
+Promise flattening (when C<then> returns a promise)
+
+=item *
+
+Multiple handlers on same promise
+
+=item *
+
+Late callback attachment
+
+=back
+
+B<Example:>
+
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise
+        ->then(sub ($x) { $x + 10 })
+        ->then(sub ($x) { $x * 2 })
+        ->then(sub ($x) { say "Result: $x" });
+
+    $promise->resolve(5);
+    $executor->run;  # Prints "Result: 30"
+
+See L<Promise> for complete documentation.
+
+=head2 Executor
+
+Event loop executor for asynchronous callback scheduling.
+
+=head3 Constructor
+
+    my $executor = Executor->new;
+    my $chained = Executor->new(next => $another_executor);
+
+=head3 Methods
+
+=over 4
+
+=item C<< next_tick($callback) >>
+
+Schedules a callback to run on the next tick.
+
+=item C<run()>
+
+Runs the event loop, processing all queued callbacks.
+
+=item C<tick()>
+
+Processes one batch of callbacks and returns the next executor in the chain.
+
+=item C<remaining()>
+
+Returns the number of queued callbacks.
+
+=item C<is_done()>
+
+Returns true if no callbacks are queued.
+
+=item C<next()>
+
+Returns the next executor in the chain, or C<undef>.
+
+=item C<< set_next($executor) >>
+
+Sets the next executor in the chain. Validates against circular chains.
+
+=back
+
+B<Example:>
+
+    my $executor = Executor->new;
+
+    $executor->next_tick(sub { say "First" });
+    $executor->next_tick(sub { say "Second" });
+
+    $executor->run;
+    # Prints:
+    # First
+    # Second
+
+See L<Executor> for complete documentation.
 
 =head1 BACKPRESSURE
 

@@ -121,4 +121,510 @@ __END__
 
 =pod
 
+=encoding UTF-8
+
+=head1 NAME
+
+Promise - Asynchronous promise implementation with executor-based scheduling
+
+=head1 SYNOPSIS
+
+    use grey::static qw[ concurrency::util ];
+
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    # Chain promises with then()
+    $promise
+        ->then(sub ($x) { $x * 2 })
+        ->then(sub ($x) { $x + 10 })
+        ->then(
+            sub ($result) { say "Success: $result" },
+            sub ($error)  { say "Error: $error" }
+        );
+
+    # Resolve the promise
+    $promise->resolve(5);
+    $executor->run;  # Output: "Success: 20"
+
+    # Error handling
+    my $promise2 = Promise->new(executor => $executor);
+    $promise2
+        ->then(sub ($x) { die "Error!\n" })
+        ->then(
+            sub ($x) { say "Won't execute" },
+            sub ($e) { say "Caught: $e" }
+        );
+
+    $promise2->resolve(1);
+    $executor->run;  # Output: "Caught: Error!"
+
+=head1 DESCRIPTION
+
+C<Promise> provides an asynchronous promise implementation inspired by JavaScript
+promises. Promises represent eventual completion (or failure) of an asynchronous
+operation and its resulting value.
+
+Key features:
+
+=over 4
+
+=item *
+
+B<Three states> - IN_PROGRESS, RESOLVED, or REJECTED
+
+=item *
+
+B<Promise chaining> - Chain multiple async operations with C<then()>
+
+=item *
+
+B<Error propagation> - Errors automatically propagate through the chain
+
+=item *
+
+B<Promise flattening> - Promises returned from C<then()> are automatically flattened
+
+=item *
+
+B<Executor-based scheduling> - All callbacks scheduled via an Executor
+
+=back
+
+=head1 PROMISE STATES
+
+Promises have three possible states, accessible via constants:
+
+=over 4
+
+=item C<Promise-E<gt>IN_PROGRESS>
+
+Initial state - the promise is neither resolved nor rejected.
+
+=item C<Promise-E<gt>RESOLVED>
+
+The promise has been successfully resolved with a value.
+
+=item C<Promise-E<gt>REJECTED>
+
+The promise has been rejected with an error.
+
+=back
+
+State transitions are one-way and permanent:
+
+    IN_PROGRESS -> RESOLVED  (via resolve())
+    IN_PROGRESS -> REJECTED  (via reject())
+
+Once a promise is settled (resolved or rejected), it cannot change state.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $promise = Promise->new(executor => $executor);
+
+Creates a new promise in the IN_PROGRESS state.
+
+B<Parameters:>
+
+=over 4
+
+=item C<executor> (required)
+
+An C<Executor> instance used to schedule callbacks asynchronously. All promises
+in a chain should use the same executor.
+
+=back
+
+B<Dies> if executor is not provided or is not an Executor instance.
+
+=head1 METHODS
+
+=head2 State Accessors
+
+=over 4
+
+=item C<status()>
+
+Returns the current state: C<IN_PROGRESS>, C<RESOLVED>, or C<REJECTED>.
+
+=item C<result()>
+
+Returns the resolved value, or C<undef> if not yet resolved.
+
+=item C<error()>
+
+Returns the rejection error, or C<undef> if not rejected.
+
+=item C<executor()>
+
+Returns the C<Executor> instance for this promise.
+
+=back
+
+=head2 State Predicates
+
+=over 4
+
+=item C<is_in_progress()>
+
+Returns true if the promise is still pending.
+
+=item C<is_resolved()>
+
+Returns true if the promise has been resolved.
+
+=item C<is_rejected()>
+
+Returns true if the promise has been rejected.
+
+=back
+
+=head2 Settlement Methods
+
+=over 4
+
+=item C<resolve($value)>
+
+Resolves the promise with the given value.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$value>
+
+The value to resolve with. Can be any value including C<undef>.
+
+=back
+
+B<Returns:> C<$self> for method chaining.
+
+B<Dies> if the promise is already settled (resolved or rejected).
+
+After resolving, all registered success callbacks (from C<then()>) are scheduled
+for execution via the executor.
+
+=item C<reject($error)>
+
+Rejects the promise with the given error.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$error>
+
+The error value or message. Can be any value including C<undef>.
+
+=back
+
+B<Returns:> C<$self> for method chaining.
+
+B<Dies> if the promise is already settled.
+
+After rejecting, all registered error callbacks (from C<then()>) are scheduled
+for execution via the executor.
+
+=back
+
+=head2 Chaining
+
+=over 4
+
+=item C<< then($on_fulfilled, $on_rejected) >>
+
+Registers callbacks to handle the promise's eventual value or error.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$on_fulfilled> (required)
+
+Callback invoked when the promise is resolved. Receives the resolved value
+as its argument.
+
+    ->then(sub ($value) { ... })
+
+=item C<$on_rejected> (optional)
+
+Callback invoked when the promise is rejected. Receives the error as its
+argument. If not provided, rejections propagate to the next promise in the chain.
+
+    ->then(
+        sub ($value) { ... },
+        sub ($error) { ... }
+    )
+
+=back
+
+B<Returns:> A new C<Promise> that will be resolved or rejected based on the
+callback's behavior:
+
+=over 4
+
+=item *
+
+If the callback returns a value, the new promise is resolved with that value
+
+=item *
+
+If the callback throws an error (C<die>), the new promise is rejected with that error
+
+=item *
+
+If the callback returns a Promise, the new promise adopts that promise's state (flattening)
+
+=back
+
+B<Promise Chaining Example:>
+
+    $promise
+        ->then(sub ($x) { $x * 2 })           # Returns 10
+        ->then(sub ($x) { $x + 5 })           # Returns 15
+        ->then(sub ($x) { say "Result: $x" }) # Prints "Result: 15"
+
+B<Error Handling Example:>
+
+    $promise
+        ->then(sub ($x) { die "Error!" if $x < 0; $x })
+        ->then(
+            sub ($x) { say "Success: $x" },
+            sub ($e) { say "Caught: $e" }
+        )
+
+=back
+
+=head1 PROMISE FLATTENING
+
+When a C<then()> callback returns a Promise, it is automatically flattened:
+
+    my $promise1 = Promise->new(executor => $executor);
+
+    $promise1->then(sub ($x) {
+        my $promise2 = Promise->new(executor => $executor);
+        $executor->next_tick(sub { $promise2->resolve($x * 2) });
+        return $promise2;  # Returning a promise
+    })->then(sub ($value) {
+        say $value;  # Gets the resolved value, not the promise
+    });
+
+    $promise1->resolve(5);
+    $executor->run;  # Prints "10"
+
+The inner promise's value is extracted and passed to the next C<then()> in the chain.
+
+B<Note:> Deeply nested promises (promise → promise → promise → value) are not
+currently flattened recursively. For best results, avoid creating promises that
+resolve to other promises.
+
+=head1 ERROR PROPAGATION
+
+Errors propagate through the promise chain until caught by an error handler:
+
+    $promise
+        ->then(sub { die "Error!" })      # Throws error
+        ->then(sub { say "Skip 1" })      # Skipped
+        ->then(sub { say "Skip 2" })      # Skipped
+        ->then(
+            sub { say "Skip 3" },
+            sub ($e) { say "Caught: $e" } # Error handled here
+        )
+
+If no error handler is provided, the error propagates to the next promise:
+
+    $promise
+        ->then(sub { die "Error!" })  # No error handler
+        ->then(sub { ... })           # Skipped (no error handler)
+        ->then(
+            sub { ... },
+            sub ($e) { ... }          # Error arrives here
+        )
+
+=head1 RECOVERY FROM ERRORS
+
+An error handler can recover by returning a value:
+
+    $promise
+        ->then(sub { die "Error!" })
+        ->then(
+            sub { say "Won't execute" },
+            sub ($e) {
+                say "Recovering from: $e";
+                return 42;  # Recovery value
+            }
+        )
+        ->then(sub ($x) {
+            say "Recovered with: $x";  # Prints "Recovered with: 42"
+        })
+
+=head1 MULTIPLE HANDLERS
+
+Multiple C<then()> calls can be made on the same promise:
+
+    my $promise = Promise->new(executor => $executor);
+
+    $promise->then(sub ($x) { say "Handler 1: $x" });
+    $promise->then(sub ($x) { say "Handler 2: $x" });
+    $promise->then(sub ($x) { say "Handler 3: $x" });
+
+    $promise->resolve(42);
+    $executor->run;
+    # All three handlers execute
+
+=head1 LATE ATTACHMENT
+
+Callbacks can be added after a promise has already settled:
+
+    my $promise = Promise->new(executor => $executor);
+    $promise->resolve(42);
+    $executor->run;  # Promise is now resolved
+
+    # Add handler after resolution
+    $promise->then(sub ($x) { say "Late: $x" });
+    $executor->run;  # Prints "Late: 42"
+
+=head1 INTEGRATION WITH EXECUTOR
+
+All promise callbacks are scheduled through the associated C<Executor>:
+
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise->then(sub ($x) { say $x });
+    $promise->resolve(42);
+
+    # Callback is queued in executor but not yet run
+    $executor->run;  # Now callback executes: prints "42"
+
+This allows fine-grained control over when async operations execute.
+
+=head1 EXAMPLES
+
+=head2 Basic Promise Chain
+
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise
+        ->then(sub ($x) { $x + 10 })
+        ->then(sub ($x) { $x * 2 })
+        ->then(sub ($x) { say "Result: $x" });
+
+    $promise->resolve(5);
+    $executor->run;  # Prints "Result: 30"
+
+=head2 Error Handling
+
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise
+        ->then(sub ($x) {
+            die "Negative!" if $x < 0;
+            return $x * 2;
+        })
+        ->then(
+            sub ($x) { say "Success: $x" },
+            sub ($e) { say "Error: $e" }
+        );
+
+    $promise->reject("Something went wrong");
+    $executor->run;  # Prints "Error: Something went wrong"
+
+=head2 Promise Flattening
+
+    my $executor = Executor->new;
+
+    my $promise1 = Promise->new(executor => $executor);
+    $promise1->then(sub ($x) {
+        # Return another promise
+        my $promise2 = Promise->new(executor => $executor);
+        $executor->next_tick(sub {
+            $promise2->resolve($x * 2);
+        });
+        return $promise2;
+    })->then(sub ($value) {
+        say "Final: $value";
+    });
+
+    $promise1->resolve(21);
+    $executor->run;  # Prints "Final: 42"
+
+=head2 Async Data Processing
+
+    my $executor = Executor->new;
+
+    sub fetch_user_async ($id) {
+        my $promise = Promise->new(executor => $executor);
+        $executor->next_tick(sub {
+            # Simulate async database fetch
+            $promise->resolve({ id => $id, name => "User $id" });
+        });
+        return $promise;
+    }
+
+    sub process_user ($user) {
+        my $promise = Promise->new(executor => $executor);
+        $executor->next_tick(sub {
+            $user->{processed} = 1;
+            $promise->resolve($user);
+        });
+        return $promise;
+    }
+
+    fetch_user_async(42)
+        ->then(sub ($user) {
+            say "Fetched: $user->{name}";
+            return process_user($user);
+        })
+        ->then(sub ($user) {
+            say "Processed: $user->{name}";
+        });
+
+    $executor->run;
+
+=head1 LIMITATIONS
+
+=over 4
+
+=item *
+
+Deeply nested promises (promise resolving to a promise resolving to a promise...)
+are not fully flattened. Single-level flattening works correctly.
+
+=item *
+
+Promise cancellation is not currently supported.
+
+=item *
+
+No built-in timeout mechanism.
+
+=back
+
+=head1 SEE ALSO
+
+=over 4
+
+=item *
+
+L<Executor> - Event loop executor for callback scheduling
+
+=item *
+
+L<grey::static::concurrency> - Concurrency features including reactive flows
+
+=item *
+
+JavaScript Promises - L<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise>
+
+=back
+
+=head1 AUTHOR
+
+grey::static
+
 =cut

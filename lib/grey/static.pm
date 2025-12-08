@@ -377,9 +377,9 @@ B<Dependencies:> Requires C<stream> feature and L<Path::Tiny>
 
 B<See also:> L<grey::static::io>
 
-=head2 concurrency
+=head2 concurrency::reactive
 
-B<Load with:> C<use grey::static qw[ concurrency ];>
+B<Load with:> C<use grey::static qw[ concurrency::reactive ];>
 
 Reactive flow-based concurrency primitives based on the Reactive Streams
 specification.
@@ -406,10 +406,6 @@ C<Flow::Subscription> - Manages publisher-subscriber connection
 
 =item *
 
-C<Flow::Executor> - Event loop executor for async tasks
-
-=item *
-
 C<Flow::Operation::*> - Flow operation implementations (Map, Grep)
 
 =back
@@ -428,27 +424,53 @@ B<Example:>
     $publisher->start;
     $publisher->close;
 
-B<Key features:>
+B<Key features:> Backpressure, async execution, reactive streams pattern
+
+B<Dependencies:> Requires C<functional> feature
+
+B<See also:> L<grey::static::concurrency>
+
+=head2 concurrency::util
+
+B<Load with:> C<use grey::static qw[ concurrency::util ];>
+
+Concurrency utilities including async primitives.
+
+B<Classes:>
 
 =over 4
 
 =item *
 
-Backpressure - demand-based flow control
+C<Executor> - Event loop executor for callback scheduling
 
 =item *
 
-Async execution - event loop with task scheduling
-
-=item *
-
-Reactive streams - publisher-subscriber pattern
+C<Promise> - Asynchronous promise implementation
 
 =back
 
-B<Dependencies:> Requires C<functional> feature
+B<Example:>
 
-B<See also:> L<grey::static::concurrency>
+    # Promises
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise
+        ->then(sub ($x) { $x * 2 })
+        ->then(sub ($x) { say "Result: $x" });
+
+    $promise->resolve(21);
+    $executor->run;  # Prints "Result: 42"
+
+    # Executor
+    $executor->next_tick(sub { say "First" });
+    $executor->next_tick(sub { say "Second" });
+    $executor->run;
+
+B<Key features:> Promise chaining, error propagation, promise flattening, event loop scheduling
+
+B<See also:> L<grey::static::concurrency>, L<Promise>, L<Executor>
 
 =head2 datatypes::ml
 
