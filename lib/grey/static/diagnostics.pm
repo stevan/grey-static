@@ -333,6 +333,8 @@ class grey::static::diagnostics::StackFrame {
 class grey::static::diagnostics::Formatter {
     field $context_lines :param = 2;
 
+    method context_lines { $context_lines }
+
     method color ($name, $text) {
         return $text unless grey::static::diagnostics::_use_colors();
         return ($COLORS{$name} // '') . $text . $COLORS{reset};
@@ -459,3 +461,298 @@ class grey::static::diagnostics::Formatter {
 }
 
 1;
+
+__END__
+
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+grey::static::diagnostics - Enhanced error and warning diagnostics
+
+=head1 SYNOPSIS
+
+    use grey::static qw[ diagnostics ];
+
+    # Errors and warnings now automatically display with:
+    # - Source context with syntax highlighting
+    # - Stack backtraces with arguments
+    # - Colorized output
+
+    die "Something went wrong";  # Enhanced error display
+
+    warn "Potential issue";      # Enhanced warning display
+
+    # Configuration
+    $grey::static::diagnostics::NO_COLOR = 1;
+    $grey::static::diagnostics::NO_BACKTRACE = 1;
+    $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
+
+=head1 DESCRIPTION
+
+The C<diagnostics> feature enhances Perl's error and warning output with
+detailed, colorized formatting inspired by Rust's error messages. When loaded,
+it installs C<$SIG{__DIE__}> and C<$SIG{__WARN__}> handlers that provide:
+
+=over 4
+
+=item *
+
+Source code context around the error location
+
+=item *
+
+Syntax-highlighted source code
+
+=item *
+
+Stack backtraces with function arguments
+
+=item *
+
+Colorized output with box-drawing characters
+
+=back
+
+=head1 CONFIGURATION
+
+Configure diagnostics behavior via package globals:
+
+=head2 $grey::static::diagnostics::NO_COLOR
+
+When set to true, disables all color output. Defaults to false.
+
+    $grey::static::diagnostics::NO_COLOR = 1;
+
+=head2 $grey::static::diagnostics::NO_BACKTRACE
+
+When set to true, disables stack backtrace display. Defaults to false.
+
+    $grey::static::diagnostics::NO_BACKTRACE = 1;
+
+=head2 $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT
+
+When set to true, disables syntax highlighting of source code. Defaults to false.
+
+    $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
+
+=head1 CLASSES
+
+=head2 grey::static::diagnostics::StackFrame
+
+Represents a single frame in a call stack.
+
+=head3 Constructor
+
+    my $frame = grey::static::diagnostics::StackFrame->new(
+        package    => $package,
+        filename   => $filename,
+        line       => $line,
+        subroutine => $subroutine,
+        hasargs    => $hasargs,
+        wantarray  => $wantarray,
+        args       => \@args,
+    );
+
+=head3 Methods
+
+=over 4
+
+=item C<package()>
+
+Returns the package name where the frame originated.
+
+=item C<filename()>
+
+Returns the filename where the frame originated.
+
+=item C<line()>
+
+Returns the line number where the frame originated.
+
+=item C<subroutine()>
+
+Returns the fully-qualified subroutine name.
+
+=item C<hasargs()>
+
+Returns true if the subroutine was called with arguments.
+
+=item C<wantarray()>
+
+Returns the calling context (scalar, list, or void).
+
+=item C<args()>
+
+Returns an arrayref of the arguments passed to the subroutine, or C<undef>
+if C<hasargs> is false.
+
+=item C<short_sub()>
+
+Returns the subroutine name, defaulting to C<(main)> if undefined.
+
+=back
+
+=head2 grey::static::diagnostics::Formatter
+
+Formats errors and warnings with source context and backtraces.
+
+=head3 Constructor
+
+    my $formatter = grey::static::diagnostics::Formatter->new(
+        context_lines => 2,  # Number of context lines (default: 2)
+    );
+
+=head3 Methods
+
+=over 4
+
+=item C<context_lines()>
+
+Returns the number of context lines shown around the error location.
+
+=item C<< format_error($message, $file, $line, $frames) >>
+
+Formats an error message with source context and optional backtrace.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$message>
+
+The error message text.
+
+=item C<$file>
+
+The file where the error occurred.
+
+=item C<$line>
+
+The line number where the error occurred.
+
+=item C<$frames>
+
+Optional arrayref of C<StackFrame> objects for backtrace display.
+
+=back
+
+B<Returns:> Formatted error string ready for display.
+
+=item C<< format_warning($message, $file, $line, $frames) >>
+
+Formats a warning message with source context and optional backtrace.
+
+Parameters and return value are the same as C<format_error>, but output
+is styled as a warning (yellow instead of red).
+
+=item C<< color($name, $text) >>
+
+Applies the named color to the text. Returns uncolored text if color output
+is disabled.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$name>
+
+Color name (e.g., C<red>, C<bold_blue>, C<cyan>).
+
+=item C<$text>
+
+Text to colorize.
+
+=back
+
+B<Returns:> Colorized text string, or plain text if colors are disabled.
+
+=back
+
+=head1 OUTPUT FORMAT
+
+Error and warning output follows this format:
+
+    error: <message>
+       ╭─[<file>:<line>]
+     1 │ context line before
+     2 │ line where error occurred (syntax highlighted)
+       │ ╰─ error occurred here
+     3 │ context line after
+       ╰
+
+    stack backtrace:
+       ├─[0] subroutine_name(arg1, arg2)
+       │    at file.pm:42
+       │    42 │source line
+       │
+       ╰─[1] caller_name()
+            at caller.pm:10
+            10 │source line
+
+=head1 BEHAVIOR
+
+=head2 Signal Handlers
+
+On import, this module installs handlers for:
+
+=over 4
+
+=item C<$SIG{__DIE__}>
+
+Catches C<die> calls and formats them with enhanced diagnostics.
+
+=item C<$SIG{__WARN__}>
+
+Catches C<warn> calls and formats them with enhanced diagnostics.
+
+=back
+
+=head2 Automatic Color Detection
+
+Colors are automatically disabled when STDERR is not a terminal (e.g., when
+piping to a file).
+
+=head2 Syntax Highlighting
+
+Perl source code is syntax highlighted with colors for:
+
+=over 4
+
+=item *
+
+Keywords (C<my>, C<sub>, C<if>, etc.) - bold magenta
+
+=item *
+
+Strings - green
+
+=item *
+
+Variables (C<$scalar>, C<@array>, C<%hash>) - cyan
+
+=item *
+
+Numbers - yellow
+
+=item *
+
+Comments - dim white
+
+=back
+
+=head1 DEPENDENCIES
+
+Requires C<grey::static::source> for source file caching and retrieval.
+
+=head1 SEE ALSO
+
+L<grey::static>, L<grey::static::source>
+
+=head1 AUTHOR
+
+grey::static
+
+=cut

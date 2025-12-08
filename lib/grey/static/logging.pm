@@ -175,3 +175,210 @@ sub import {
 }
 
 1;
+
+__END__
+
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+grey::static::logging - Debug logging utilities
+
+=head1 SYNOPSIS
+
+    use grey::static qw[ logging ];
+
+    # Basic logging
+    LOG $self, "processing data";
+    LOG $self, "found item", { id => 42, name => "foo" };
+
+    # Info logging
+    INFO "application started";
+    INFO "config loaded", { port => 8080, host => "localhost" };
+
+    # Visual dividers
+    DIV "Section Title";
+
+    # Lifecycle tracking
+    OPEN $self;   # Mark object/section opening
+    TICK $self;   # Mark progress tick
+    CLOSE $self;  # Mark object/section closing
+
+    # Conditional logging with DEBUG
+    LOG $self, "expensive debug info" if DEBUG;
+
+=head1 DESCRIPTION
+
+The C<logging> feature provides debug logging utilities with colorized output
+and automatic call depth tracking. All functions are exported lexically into
+the calling scope.
+
+Logging output is controlled by the C<DEBUG> environment variable. When
+C<DEBUG> is not set, the C<DEBUG> constant is false, allowing the compiler to
+optimize away conditional logging code.
+
+=head1 EXPORTED FUNCTIONS
+
+=head2 LOG
+
+    LOG $from, $message;
+    LOG $from, $message, \%params;
+
+Logs a message with automatic depth tracking and colorization.
+
+=over 4
+
+=item C<$from>
+
+The object or package name to log from. If an object (blessed reference), uses
+the class name. If a string, appends C<::> to format as a package name.
+
+=item C<$message>
+
+The message to log. If not provided, uses the calling subroutine name.
+
+=item C<\%params>
+
+Optional hashref of parameters to display with the message.
+
+=back
+
+Output format: C<< <depth> <from> -> <message> <params> >>
+
+=head2 INFO
+
+    INFO $message;
+    INFO $message, \%params;
+
+Logs an informational message from the current package.
+
+=over 4
+
+=item C<$message>
+
+The message to log.
+
+=item C<\%params>
+
+Optional hashref of parameters to display with the message.
+
+=back
+
+Output is prefixed with C<INFO(Package::Name)>.
+
+=head2 DIV
+
+    DIV $label;
+
+Prints a visual divider line with the given label.
+
+=over 4
+
+=item C<$label>
+
+Text to display in the divider.
+
+=back
+
+Output format: C<====[label]=====================================>
+
+=head2 OPEN
+
+    OPEN $from;
+
+Marks the opening of a section or object lifecycle with a visual banner.
+
+=over 4
+
+=item C<$from>
+
+The object or identifier for the section being opened.
+
+=back
+
+=head2 CLOSE
+
+    CLOSE $from;
+
+Marks the closing of a section or object lifecycle with a visual banner.
+
+=over 4
+
+=item C<$from>
+
+The object or identifier for the section being closed.
+
+=back
+
+=head2 TICK
+
+    TICK $from;
+
+Marks a progress tick for the given object, with automatic counter increment.
+
+=over 4
+
+=item C<$from>
+
+The object to track ticks for. Maintains a separate counter per object (by refaddr).
+
+=back
+
+Each call increments the tick counter for that object, displayed as C<[n]tick>.
+
+=head2 DEBUG
+
+    if (DEBUG) {
+        # expensive debug operations
+    }
+
+Constant boolean indicating whether debug mode is enabled. Returns true if
+the C<DEBUG> environment variable is set, false otherwise.
+
+This is a compile-time constant, allowing the Perl compiler to optimize away
+entire debug blocks when C<DEBUG> is false.
+
+=head1 OUTPUT COLORIZATION
+
+All output is automatically colorized using ANSI escape codes with RGB colors.
+Colors are:
+
+=over 4
+
+=item *
+
+Depth indicators use a gradient from green to yellow based on call depth
+
+=item *
+
+Object/package names are assigned consistent random colors
+
+=item *
+
+Special patterns (class names, method calls, info tags) are highlighted
+
+=back
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item C<DEBUG>
+
+When set to a true value, enables the C<DEBUG> constant. When not set or false,
+C<DEBUG> is a compile-time constant false, allowing the compiler to eliminate
+debug code.
+
+=back
+
+=head1 SEE ALSO
+
+L<grey::static>, L<grey::static::diagnostics>
+
+=head1 AUTHOR
+
+grey::static
+
+=cut
