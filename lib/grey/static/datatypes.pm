@@ -1,6 +1,6 @@
 use v5.42;
-use experimental qw(builtin);
-use builtin qw(load_module);
+use experimental qw[ builtin ];
+use builtin qw[ load_module export_lexically ];
 
 package grey::static::datatypes;
 
@@ -25,6 +25,19 @@ sub import {
             load_module('Scalar');
             load_module('Vector');
             load_module('Matrix');
+        }
+        elsif ($subfeature eq 'util') {
+            use lib File::Basename::dirname(__FILE__) . '/datatypes/util';
+            load_module('Result');
+            load_module('Option');
+
+            export_lexically(
+                '&None'   => sub ()       { Option->new },
+                '&Some'   => sub ($value) { Option->new(some  => $value) },
+                '&Ok'     => sub ($value) { Result->new(ok    => $value) },
+                '&Error'  => sub ($error) { Result->new(error => $error) },
+
+            );
         }
         else {
             die "Unknown datatypes subfeature: $subfeature";
