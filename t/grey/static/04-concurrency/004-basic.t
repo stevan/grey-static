@@ -6,7 +6,7 @@ use experimental qw[ class ];
 use Test::More;
 use Test::Differences;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive ];
 
 my @seen;
 

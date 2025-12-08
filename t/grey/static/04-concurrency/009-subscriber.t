@@ -5,7 +5,7 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 subtest '... test Subscriber creation with defaults' => sub {
     my @collected;
@@ -39,7 +39,7 @@ subtest '... test Subscriber on_subscribe' => sub {
     my $subscription = Flow::Subscription->new(
         publisher => $publisher,
         subscriber => $subscriber,
-        executor => Flow::Executor->new,
+        executor => Executor->new,
     );
 
     # on_subscribe should be called by subscription

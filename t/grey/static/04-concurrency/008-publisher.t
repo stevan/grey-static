@@ -5,12 +5,12 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 subtest '... test Publisher creation' => sub {
     my $publisher = Flow::Publisher->new;
     ok($publisher, 'created a Publisher');
-    isa_ok($publisher->executor, 'Flow::Executor', 'has an executor');
+    isa_ok($publisher->executor, 'Executor', 'has an executor');
     is($publisher->subscription, undef, 'no subscription initially');
 };
 
@@ -113,7 +113,7 @@ subtest '... test Publisher executor integration' => sub {
     my $publisher = Flow::Publisher->new;
     my $executor = $publisher->executor;
 
-    isa_ok($executor, 'Flow::Executor', 'has executor');
+    isa_ok($executor, 'Executor', 'has executor');
 
     my @order;
     $executor->next_tick(sub { push @order, 'first' });

@@ -5,7 +5,7 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive ];
 
 subtest '... test Grep operation creation' => sub {
     my $p = Predicate->new( f => sub ($x) { $x > 5 } );

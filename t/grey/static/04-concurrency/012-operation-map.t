@@ -5,7 +5,7 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive ];
 
 subtest '... test Map operation creation' => sub {
     my $f = Function->new( f => sub ($x) { $x * 2 } );

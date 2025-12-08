@@ -1,5 +1,5 @@
 #!perl
-# Unit tests for Flow::Executor set_next cycle detection
+# Unit tests for Executor set_next cycle detection
 
 use v5.42;
 use experimental qw[ class try ];
@@ -7,11 +7,11 @@ use experimental qw[ class try ];
 use Test::More;
 use Test::Differences;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 # Test 1: Setting next to undef should work
 subtest 'set_next to undef' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
     $exe->set_next(undef);
 
     is($exe->next, undef, '... next is undef');
@@ -19,8 +19,8 @@ subtest 'set_next to undef' => sub {
 
 # Test 2: Simple chain (no cycle) should work
 subtest 'set_next simple chain' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new;
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new;
 
     $exe1->set_next($exe2);
 
@@ -30,7 +30,7 @@ subtest 'set_next simple chain' => sub {
 
 # Test 3: Direct self-reference should fail
 subtest 'set_next self-reference' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
 
     try {
         $exe->set_next($exe);
@@ -43,8 +43,8 @@ subtest 'set_next self-reference' => sub {
 
 # Test 4: Two-executor cycle should fail
 subtest 'set_next two-executor cycle' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     try {
         $exe2->set_next($exe1);  # Would create: exe1 -> exe2 -> exe1
@@ -59,9 +59,9 @@ subtest 'set_next two-executor cycle' => sub {
 
 # Test 5: Three-executor cycle should fail
 subtest 'set_next three-executor cycle' => sub {
-    my $exe3 = Flow::Executor->new;
-    my $exe2 = Flow::Executor->new(next => $exe3);
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe3 = Executor->new;
+    my $exe2 = Executor->new(next => $exe3);
+    my $exe1 = Executor->new(next => $exe2);
 
     try {
         $exe3->set_next($exe1);  # Would create: exe1 -> exe2 -> exe3 -> exe1
@@ -76,11 +76,11 @@ subtest 'set_next three-executor cycle' => sub {
 
 # Test 6: Long chain cycle should fail
 subtest 'set_next long chain cycle' => sub {
-    my $exe5 = Flow::Executor->new;
-    my $exe4 = Flow::Executor->new(next => $exe5);
-    my $exe3 = Flow::Executor->new(next => $exe4);
-    my $exe2 = Flow::Executor->new(next => $exe3);
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe5 = Executor->new;
+    my $exe4 = Executor->new(next => $exe5);
+    my $exe3 = Executor->new(next => $exe4);
+    my $exe2 = Executor->new(next => $exe3);
+    my $exe1 = Executor->new(next => $exe2);
 
     try {
         $exe5->set_next($exe2);  # Would create cycle at exe2
@@ -95,8 +95,8 @@ subtest 'set_next long chain cycle' => sub {
 
 # Test 7: Setting to executor with existing (non-conflicting) cycle should work
 subtest 'set_next to executor with existing cycle' => sub {
-    my $exe3 = Flow::Executor->new;
-    my $exe2 = Flow::Executor->new;
+    my $exe3 = Executor->new;
+    my $exe2 = Executor->new;
 
     # Create a separate cycle: exe2 -> exe3 -> exe2
     $exe2->set_next($exe3);
@@ -109,7 +109,7 @@ subtest 'set_next to executor with existing cycle' => sub {
     }
 
     # Now exe1 pointing to exe2 should work (even though exe2 might be part of a cycle)
-    my $exe1 = Flow::Executor->new;
+    my $exe1 = Executor->new;
     $exe1->set_next($exe2);  # This should work
 
     is($exe1->next, $exe2, '... exe1->next is exe2');
@@ -117,9 +117,9 @@ subtest 'set_next to executor with existing cycle' => sub {
 
 # Test 8: Replacing next should work
 subtest 'replacing next' => sub {
-    my $exe3 = Flow::Executor->new;
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe3 = Executor->new;
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     is($exe1->next, $exe2, '... initially exe1->next is exe2');
 
@@ -129,10 +129,10 @@ subtest 'replacing next' => sub {
 
 # Test 9: Complex chain rearrangement
 subtest 'complex chain rearrangement' => sub {
-    my $exe4 = Flow::Executor->new;
-    my $exe3 = Flow::Executor->new(next => $exe4);
-    my $exe2 = Flow::Executor->new(next => $exe3);
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe4 = Executor->new;
+    my $exe3 = Executor->new(next => $exe4);
+    my $exe2 = Executor->new(next => $exe3);
+    my $exe1 = Executor->new(next => $exe2);
 
     # Initial chain: exe1 -> exe2 -> exe3 -> exe4
     is($exe1->next, $exe2, '... exe1 -> exe2');

@@ -7,11 +7,34 @@ package grey::static::concurrency;
 our $VERSION = '0.01';
 
 use File::Basename ();
-use lib File::Basename::dirname(__FILE__) . '/concurrency';
 
-load_module('Flow');
+sub import {
+    my ($class, @subfeatures) = @_;
 
-sub import { }
+    # If no subfeatures specified, do nothing (require explicit sub-features)
+    return unless @subfeatures;
+
+    # Load each subfeature
+    for my $subfeature (@subfeatures) {
+        if ($subfeature eq 'util') {
+            # Add the util directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/concurrency/util';
+
+            # Load the util classes
+            load_module('Executor');
+        }
+        elsif ($subfeature eq 'reactive') {
+            # Add the reactive directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/concurrency/reactive';
+
+            # Load the Flow classes
+            load_module('Flow');
+        }
+        else {
+            die "Unknown concurrency subfeature: $subfeature";
+        }
+    }
+}
 
 1;
 

@@ -1,8 +1,9 @@
 
 use v5.42;
-use experimental qw[ class ];
+use experimental qw[ class builtin ];
+use builtin qw[ load_module ];
 
-use Flow::Executor;
+use grey::static qw[ concurrency::util ];
 use Flow::Subscription;
 
 class Flow::Publisher {
@@ -12,7 +13,7 @@ class Flow::Publisher {
     field @buffer;
 
     ADJUST {
-        $executor = Flow::Executor->new;
+        $executor = Executor->new;
     }
 
     method drain_buffer {

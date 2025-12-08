@@ -5,7 +5,7 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 # Create a test operation that doubles values
 package TestOperation {
@@ -47,7 +47,7 @@ package MultiplyingOperation {
 subtest '... test Operation creation' => sub {
     my $op = TestOperation->new;
     ok($op, 'created an Operation');
-    isa_ok($op->executor, 'Flow::Executor', 'has an executor');
+    isa_ok($op->executor, 'Executor', 'has an executor');
     is($op->downstream, undef, 'no downstream initially');
     is($op->upstream, undef, 'no upstream initially');
 };

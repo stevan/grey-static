@@ -2,6 +2,7 @@
 use v5.42;
 use experimental qw[ class ];
 
+use grey::static qw[ concurrency::util ];
 use Flow::Subscription;
 
 class Flow::Operation {
@@ -12,7 +13,7 @@ class Flow::Operation {
     field @buffer;
 
     ADJUST {
-        $executor = Flow::Executor->new;
+        $executor = Executor->new;
     }
 
     method apply ($e) { ... }

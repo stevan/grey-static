@@ -5,10 +5,10 @@ use experimental qw[ class ];
 use Test::More;
 use Test::Differences;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::util ];
 
-my $exe2 = Flow::Executor->new;
-my $exe1 = Flow::Executor->new( next => $exe2 );
+my $exe2 = Executor->new;
+my $exe1 = Executor->new( next => $exe2 );
 
 my @got;
 

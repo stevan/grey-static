@@ -5,7 +5,7 @@ use v5.42;
 use Test::More;
 use Test::Exception;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 subtest '... test Subscription creation' => sub {
     my $publisher = Flow::Publisher->new;
@@ -14,7 +14,7 @@ subtest '... test Subscription creation' => sub {
         consumer => Consumer->new( f => sub ($e) { push @collected, $e } ),
         request_size => 5,
     );
-    my $executor = Flow::Executor->new;
+    my $executor = Executor->new;
 
     my $subscription = Flow::Subscription->new(
         publisher => $publisher,

@@ -2,7 +2,7 @@
 use v5.42;
 use experimental qw[ class try ];
 
-class Flow::Executor {
+class Executor {
     field $next :param :reader = undef;
 
     field @callbacks;
@@ -70,7 +70,7 @@ class Flow::Executor {
     method run {
         my $t = $self;
 
-        while (blessed $t && $t isa Flow::Executor) {
+        while (blessed $t && $t isa Executor) {
             $t = $t->tick;
             if (!$t) {
                 $t = $self->find_next_undone;

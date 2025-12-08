@@ -1,5 +1,5 @@
 #!perl
-# Unit tests for Flow::Executor edge cases and fixes
+# Unit tests for Executor edge cases and fixes
 
 use v5.42;
 use experimental qw[ class try ];
@@ -7,11 +7,11 @@ use experimental qw[ class try ];
 use Test::More;
 use Test::Differences;
 
-use grey::static qw[ functional concurrency ];
+use grey::static qw[ functional concurrency::reactive concurrency::util ];
 
 # Test 1: Basic functionality - callbacks execute in order
 subtest 'basic callback execution' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
     my @executed;
 
     $exe->next_tick(sub { push @executed => 1 });
@@ -30,7 +30,7 @@ subtest 'basic callback execution' => sub {
 
 # Test 2: Callbacks added during tick run in next tick
 subtest 'callbacks added during tick' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
     my @executed;
 
     $exe->next_tick(sub {
@@ -48,7 +48,7 @@ subtest 'callbacks added during tick' => sub {
 
 # Test 3: Exception in callback preserves remaining callbacks
 subtest 'exception handling preserves callbacks' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
     my @executed;
 
     $exe->next_tick(sub { push @executed => 1 });
@@ -72,7 +72,7 @@ subtest 'exception handling preserves callbacks' => sub {
 
 # Test 4: Multiple exceptions - each preserves remaining callbacks
 subtest 'multiple exceptions' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
     my @executed;
 
     $exe->next_tick(sub { push @executed => 1 });
@@ -107,8 +107,8 @@ subtest 'multiple exceptions' => sub {
 
 # Test 5: set_next prevents circular chains
 subtest 'set_next prevents circular chain' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     try {
         $exe2->set_next($exe1);  # Would create cycle: exe1 -> exe2 -> exe1
@@ -123,8 +123,8 @@ subtest 'set_next prevents circular chain' => sub {
 
 # Test 6: Chain with work executes correctly
 subtest 'chain with work executes correctly' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     my @executed;
 
@@ -153,8 +153,8 @@ subtest 'chain with work executes correctly' => sub {
 
 # Test 7: find_next_undone with chain
 subtest 'find_next_undone with chain' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     # No work - should return undef
     my $found = $exe1->find_next_undone;
@@ -174,8 +174,8 @@ subtest 'find_next_undone with chain' => sub {
 
 # Test 8: collect_all with chain
 subtest 'collect_all with chain' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     my @all = $exe1->collect_all;
     is(scalar @all, 2, '... collected both executors');
@@ -187,12 +187,12 @@ subtest 'collect_all with chain' => sub {
 
 # Test 9: Long chain without cycle
 subtest 'long chain without cycle' => sub {
-    my $last = Flow::Executor->new;
+    my $last = Executor->new;
     my $first = $last;
 
     # Create a chain of 100 executors
     for (1..100) {
-        $first = Flow::Executor->new(next => $first);
+        $first = Executor->new(next => $first);
     }
 
     # Add work to the last executor
@@ -207,8 +207,8 @@ subtest 'long chain without cycle' => sub {
 
 # Test 10: Ping-pong between executors
 subtest 'ping-pong between executors' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     my @got;
 
@@ -240,7 +240,7 @@ subtest 'ping-pong between executors' => sub {
 
 # Test 11: Self-referential executor prevented
 subtest 'self-referential executor prevented' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
 
     try {
         $exe->set_next($exe);  # Try to point to itself
@@ -255,9 +255,9 @@ subtest 'self-referential executor prevented' => sub {
 
 # Test 12: Three-way chain (no cycle)
 subtest 'three-way chain' => sub {
-    my $exe3 = Flow::Executor->new;
-    my $exe2 = Flow::Executor->new(next => $exe3);
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe3 = Executor->new;
+    my $exe2 = Executor->new(next => $exe3);
+    my $exe1 = Executor->new(next => $exe2);
 
     my @executed;
     $exe1->next_tick(sub { push @executed => 1 });
@@ -271,7 +271,7 @@ subtest 'three-way chain' => sub {
 
 # Test 13: Empty executor chain
 subtest 'empty executor run' => sub {
-    my $exe = Flow::Executor->new;
+    my $exe = Executor->new;
 
     $exe->run;  # Should not hang
 
@@ -281,8 +281,8 @@ subtest 'empty executor run' => sub {
 
 # Test 14: diag method with chain
 subtest 'diag with chain' => sub {
-    my $exe2 = Flow::Executor->new;
-    my $exe1 = Flow::Executor->new(next => $exe2);
+    my $exe2 = Executor->new;
+    my $exe1 = Executor->new(next => $exe2);
 
     # Should not hang or crash
     $exe1->diag;
