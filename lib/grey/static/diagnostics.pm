@@ -302,6 +302,10 @@ sub _warn_handler {
 
 sub import {
     my $class = shift;
+
+    binmode STDOUT, ':utf8';
+    binmode STDERR, ':utf8';
+
     $SIG{__DIE__} = \&_die_handler;
     $SIG{__WARN__} = \&_warn_handler;
 }
