@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'height method - matrix height calculation' => sub {
     my $m1 = Matrix->new( shape => [2, 3], data => [1, 2, 3, 4, 5, 6] );

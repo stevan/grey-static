@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'eq method - equality comparison with scalar' => sub {
     my $m = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );

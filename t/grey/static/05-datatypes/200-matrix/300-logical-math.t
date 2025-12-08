@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'not method - logical not operation' => sub {
     my $m = Matrix->new( shape => [2, 2], data => [1, 0, 2, 0] );

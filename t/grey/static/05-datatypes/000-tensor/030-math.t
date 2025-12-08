@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'add method - tensor addition with scalar' => sub {
     my $t = Tensor->initialize([3], [1, 2, 3]);

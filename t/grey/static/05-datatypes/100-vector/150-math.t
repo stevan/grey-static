@@ -5,7 +5,7 @@ use experimental qw[ class ];
 use Test::More;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 my $vector = Vector->initialize(2, [ 1, 2 ] );
 

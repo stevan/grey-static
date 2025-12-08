@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'at method - accessing 1D tensor elements' => sub {
     my $t = Tensor->initialize([5], [1, 2, 3, 4, 5]);

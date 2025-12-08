@@ -19,9 +19,24 @@ sub import {
 
     # Load each requested feature
     for my $feature (@features) {
-        my $module = "grey::static::${feature}";
-        load_module($module);
-        $module->import();
+        # Check if this is a sub-feature (contains ::)
+        if ($feature =~ /^([^:]+)::(.+)$/) {
+            my $base_feature = $1;
+            my $subfeature = $2;
+
+            # Load the base feature module
+            my $module = "grey::static::${base_feature}";
+            load_module($module);
+
+            # Call its import with the subfeature
+            $module->import($subfeature);
+        }
+        else {
+            # Simple feature without sub-features
+            my $module = "grey::static::${feature}";
+            load_module($module);
+            $module->import();
+        }
     }
 }
 

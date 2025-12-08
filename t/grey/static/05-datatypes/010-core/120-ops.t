@@ -6,8 +6,8 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::ml ];
 
 my $matrix = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );
 

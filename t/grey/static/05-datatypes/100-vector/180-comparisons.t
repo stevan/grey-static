@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'eq method - equality comparison with scalar' => sub {
     my $v = Vector->initialize(4, [1, 2, 3, 4] );

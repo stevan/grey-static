@@ -5,7 +5,7 @@ use experimental qw[ class ];
 use Test::More;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'unary_op method - basic unary operations' => sub {
     my $v = Vector->initialize(3, [ 1, 2, 3 ] );

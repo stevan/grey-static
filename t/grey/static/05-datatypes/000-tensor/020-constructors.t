@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes ];
+use grey::static qw[ datatypes::ml ];
 
 subtest 'initialize method - 1D tensor with scalar initial value' => sub {
     my $t = Tensor->initialize([5], 0);
