@@ -2,8 +2,9 @@ use v5.42;
 use utf8;
 use experimental qw(class);
 use Scalar::Util qw(refaddr blessed);
+use Carp ();
 
-package grey::static::diagnostics;
+package grey::static::error;
 
 our $VERSION = '0.01';
 
@@ -215,7 +216,7 @@ sub _capture_stack {
             $skip = 1 if $filename =~ /^\(eval/;
 
             unless ($skip) {
-                push @frames, grey::static::diagnostics::StackFrame->new(
+                push @frames, grey::static::error::StackFrame->new(
                     package    => $package,
                     filename   => $filename,
                     line       => $line,
@@ -232,86 +233,17 @@ sub _capture_stack {
     return \@frames;
 }
 
-# Parse error message to extract file and line information
-sub _parse_error {
-    my ($error) = @_;
-
-    chomp($error);
-
-    if ($error =~ /^(.+?)\s+at\s+(.+?)\s+line\s+(\d+)/) {
-        my ($message, $file, $line) = ($1, $2, $3);
-        return ($message, $file, $line);
-    }
-
-    return ($error, undef, undef);
-}
-
-# The die handler
-sub _die_handler {
-    my ($error) = @_;
-
-    return if $^S;
-
-    my $frames = _capture_stack(1);
-
-    my ($message, $file, $line) = _parse_error($error);
-
-    if (!defined $file || !defined $line) {
-        my $level = 0;
-        while (my @caller = caller($level)) {
-            if ($caller[0] !~ /^grey::static::/ && $caller[1] !~ /^\(eval/) {
-                $file //= $caller[1];
-                $line //= $caller[2];
-                last;
-            }
-            $level++;
-        }
-    }
-
-    my $formatter = grey::static::diagnostics::Formatter->new(context_lines => 2);
-    my $formatted = $formatter->format_error($message, $file // 'unknown', $line // 0, $frames);
-
-    die $formatted;
-}
-
-# The warn handler
-sub _warn_handler {
-    my ($warning) = @_;
-
-    my $frames = _capture_stack(1);
-
-    my ($message, $file, $line) = _parse_error($warning);
-
-    if (!defined $file || !defined $line) {
-        my $level = 0;
-        while (my @caller = caller($level)) {
-            if ($caller[0] !~ /^grey::static::/ && $caller[1] !~ /^\(eval/) {
-                $file //= $caller[1];
-                $line //= $caller[2];
-                last;
-            }
-            $level++;
-        }
-    }
-
-    my $formatter = grey::static::diagnostics::Formatter->new(context_lines => 2);
-    my $formatted = $formatter->format_warning($message, $file // 'unknown', $line // 0, $frames);
-
-    warn $formatted;
-}
-
 sub import {
     my $class = shift;
 
     binmode STDOUT, ':utf8';
     binmode STDERR, ':utf8';
 
-    $SIG{__DIE__} = \&_die_handler;
-    $SIG{__WARN__} = \&_warn_handler;
+    # Error class is globally available, no need to export
 }
 
 
-class grey::static::diagnostics::StackFrame {
+class grey::static::error::StackFrame {
     field $package :param;
     field $filename :param;
     field $line :param;
@@ -334,28 +266,20 @@ class grey::static::diagnostics::StackFrame {
     }
 }
 
-class grey::static::diagnostics::Formatter {
+class grey::static::error::Formatter {
     field $context_lines :param = 2;
 
     method context_lines { $context_lines }
 
     method color ($name, $text) {
-        return $text unless grey::static::diagnostics::_use_colors();
+        return $text unless grey::static::error::_use_colors();
         return ($COLORS{$name} // '') . $text . $COLORS{reset};
     }
 
     method format_error ($message, $file, $line, $frames = undef) {
-        return $self->_format_message('error', 'bold_red', $message, $file, $line, $frames);
-    }
-
-    method format_warning ($message, $file, $line, $frames = undef) {
-        return $self->_format_message('warning', 'bold_yellow', $message, $file, $line, $frames);
-    }
-
-    method _format_message ($level, $level_color, $message, $file, $line, $frames = undef) {
         my $output = "";
 
-        $output .= $self->color($level_color, $level) . ': ';
+        $output .= $self->color('bold_red', 'error') . ': ';
         $output .= $self->color('bold', $message) . "\n";
 
         $output .= '   ' . $self->color('bold_blue', " $BOX{top_left}$BOX{h_line}\[") ;
@@ -364,12 +288,12 @@ class grey::static::diagnostics::Formatter {
 
         my $source = grey::static::source->get_source($file);
         if ($source && $line > 0) {
-            $output .= $self->_format_source_context($source, $line, $level_color, $level);
+            $output .= $self->_format_source_context($source, $line);
         } else {
             $output .= '   ' . $self->color('bold_blue', $BOX{bot_left}) . "\n";
         }
 
-        if ($frames && @$frames && grey::static::diagnostics::_show_backtrace()) {
+        if ($frames && @$frames && grey::static::error::_show_backtrace()) {
             $output .= $self->_format_backtrace($frames);
         }
 
@@ -394,7 +318,7 @@ class grey::static::diagnostics::Formatter {
             $output .= $self->color('bold', $frame->short_sub);
 
             if ($frame->args && @{$frame->args}) {
-                $output .= $self->color('cyan', grey::static::diagnostics::_format_args($frame->args));
+                $output .= $self->color('cyan', grey::static::error::_format_args($frame->args));
             }
             $output .= "\n";
 
@@ -419,7 +343,7 @@ class grey::static::diagnostics::Formatter {
         return $output."\n";
     }
 
-    method _format_source_context ($source, $error_line, $level_color = 'bold_red', $level = 'error') {
+    method _format_source_context ($source, $error_line) {
         my $output = "";
         my $line_count = $source->line_count;
 
@@ -438,7 +362,7 @@ class grey::static::diagnostics::Formatter {
 
             if ($num == $error_line) {
                 $output .= $self->color('bold_blue', " $gutter $BOX{v_line}");
-                $output .= grey::static::diagnostics::_highlight_syntax($line_content) . "\n";
+                $output .= grey::static::error::_highlight_syntax($line_content) . "\n";
 
                 my $content_length = length($line_content);
                 $content_length = 1 if $content_length == 0;
@@ -449,8 +373,8 @@ class grey::static::diagnostics::Formatter {
 
                 $output .= $self->color('bold_blue', " $gutter_pad $BOX{v_line}");
                 $output .= ' ' x $leading_space;
-                $output .= $self->color($level_color, "$BOX{bot_left}" . ($BOX{h_line} x ($pointer_length - 1)));
-                $output .= $self->color($level_color, " $level occurred here");
+                $output .= $self->color('bold_red', "$BOX{bot_left}" . ($BOX{h_line} x ($pointer_length - 1)));
+                $output .= $self->color('bold_red', " error occurred here");
                 $output .= "\n";
             } else {
                 $output .= $self->color('bold_blue', " $gutter $BOX{v_line}");
@@ -464,6 +388,55 @@ class grey::static::diagnostics::Formatter {
     }
 }
 
+# The Error class
+class Error {
+    use overload '""' => \&stringify, fallback => 1;
+
+    field $message :param;
+    field $file :param = undef;
+    field $line :param = undef;
+    field $frames :param = undef;
+    field $hint :param = undef;
+
+    ADJUST {
+        # Capture caller location if not provided
+        unless (defined $file && defined $line) {
+            my $level = 0;
+            while (my @caller = caller($level)) {
+                if ($caller[0] ne 'Error' && $caller[0] !~ /^grey::static::error/) {
+                    $file //= $caller[1];
+                    $line //= $caller[2];
+                    last;
+                }
+                $level++;
+            }
+        }
+
+        # Capture stack trace if not provided
+        $frames //= grey::static::error::_capture_stack(2);
+    }
+
+    method message { $message }
+    method file { $file }
+    method line { $line }
+    method frames { $frames }
+    method hint { $hint }
+
+    method stringify {
+        my $formatter = grey::static::error::Formatter->new(context_lines => 2);
+        my $msg = $message;
+        $msg .= " (hint: $hint)" if $hint;
+        return $formatter->format_error($msg, $file // 'unknown', $line // 0, $frames);
+    }
+}
+
+# Class method for throwing errors
+sub Error::throw {
+    my ($class, %args) = @_;
+    my $error = Error->new(%args);
+    die $error;
+}
+
 1;
 
 __END__
@@ -474,282 +447,146 @@ __END__
 
 =head1 NAME
 
-grey::static::diagnostics - Enhanced error and warning diagnostics
+grey::static::error - Structured error objects with beautiful formatting
 
 =head1 SYNOPSIS
 
-    use grey::static qw[ diagnostics ];
+    use grey::static qw[ error ];
 
-    # Errors and warnings now automatically display with:
-    # - Source context with syntax highlighting
-    # - Stack backtraces with arguments
-    # - Colorized output
+    # Throw structured errors
+    Error->throw(
+        message => "Invalid argument",
+        hint => "Expected a positive integer"
+    );
 
-    die "Something went wrong";  # Enhanced error display
+    # Create and throw separately
+    my $err = Error->new(message => "File not found");
+    die $err;  # Beautifully formatted output
 
-    warn "Potential issue";      # Enhanced warning display
-
-    # Configuration
-    $grey::static::diagnostics::NO_COLOR = 1;
-    $grey::static::diagnostics::NO_BACKTRACE = 1;
-    $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
+    # Errors stringify automatically
+    eval { Error->throw(message => "Oops") };
+    say $@;  # Shows formatted error with stack trace
 
 =head1 DESCRIPTION
 
-The C<diagnostics> feature enhances Perl's error and warning output with
-detailed, colorized formatting inspired by Rust's error messages. When loaded,
-it installs C<$SIG{__DIE__}> and C<$SIG{__WARN__}> handlers that provide:
-
-=over 4
-
-=item *
-
-Source code context around the error location
-
-=item *
-
-Syntax-highlighted source code
-
-=item *
-
-Stack backtraces with function arguments
-
-=item *
-
-Colorized output with box-drawing characters
-
-=back
-
-=head1 CONFIGURATION
-
-Configure diagnostics behavior via package globals:
-
-=head2 $grey::static::diagnostics::NO_COLOR
-
-When set to true, disables all color output. Defaults to false.
-
-    $grey::static::diagnostics::NO_COLOR = 1;
-
-=head2 $grey::static::diagnostics::NO_BACKTRACE
-
-When set to true, disables stack backtrace display. Defaults to false.
-
-    $grey::static::diagnostics::NO_BACKTRACE = 1;
-
-=head2 $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT
-
-When set to true, disables syntax highlighting of source code. Defaults to false.
-
-    $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
+The C<error> feature provides structured error objects that stringify with
+beautiful, colorized formatting inspired by Rust's error messages. Unlike the
+old C<diagnostics> feature, this does not install global signal handlers and
+is not invasive.
 
 =head1 CLASSES
 
-=head2 grey::static::diagnostics::StackFrame
+=head2 Error
 
-Represents a single frame in a call stack.
+Structured error object with automatic formatting.
 
 =head3 Constructor
 
-    my $frame = grey::static::diagnostics::StackFrame->new(
-        package    => $package,
-        filename   => $filename,
-        line       => $line,
-        subroutine => $subroutine,
-        hasargs    => $hasargs,
-        wantarray  => $wantarray,
-        args       => \@args,
+    my $err = Error->new(
+        message => $message,    # Required error message
+        hint => $hint,          # Optional hint for fixing
+        file => $file,          # Optional (auto-detected)
+        line => $line,          # Optional (auto-detected)
+        frames => \@frames,     # Optional (auto-captured)
     );
 
-=head3 Methods
+=head3 Class Methods
 
 =over 4
 
-=item C<package()>
+=item C<< Error->throw(%args) >>
 
-Returns the package name where the frame originated.
+Creates an error and immediately dies with it.
 
-=item C<filename()>
+    Error->throw(
+        message => "Division by zero",
+        hint => "Check denominator before dividing"
+    );
 
-Returns the filename where the frame originated.
+=back
+
+=head3 Instance Methods
+
+=over 4
+
+=item C<message()>
+
+Returns the error message.
+
+=item C<file()>
+
+Returns the file where the error occurred.
 
 =item C<line()>
 
-Returns the line number where the frame originated.
+Returns the line number where the error occurred.
 
-=item C<subroutine()>
+=item C<frames()>
 
-Returns the fully-qualified subroutine name.
+Returns arrayref of stack frames.
 
-=item C<hasargs()>
+=item C<hint()>
 
-Returns true if the subroutine was called with arguments.
+Returns the optional hint message.
 
-=item C<wantarray()>
+=item C<stringify()>
 
-Returns the calling context (scalar, list, or void).
-
-=item C<args()>
-
-Returns an arrayref of the arguments passed to the subroutine, or C<undef>
-if C<hasargs> is false.
-
-=item C<short_sub()>
-
-Returns the subroutine name, defaulting to C<(main)> if undefined.
+Formats the error for display. Called automatically when error is stringified.
 
 =back
 
-=head2 grey::static::diagnostics::Formatter
+=head2 grey::static::error::StackFrame
 
-Formats errors and warnings with source context and backtraces.
+Represents a single frame in a call stack. See the source for details.
 
-=head3 Constructor
+=head2 grey::static::error::Formatter
 
-    my $formatter = grey::static::diagnostics::Formatter->new(
-        context_lines => 2,  # Number of context lines (default: 2)
-    );
+Formats errors with source context and backtraces. See the source for details.
 
-=head3 Methods
+=head1 CONFIGURATION
 
-=over 4
+Configure error formatting via package globals:
 
-=item C<context_lines()>
+=head2 $grey::static::error::NO_COLOR
 
-Returns the number of context lines shown around the error location.
+Disable color output.
 
-=item C<< format_error($message, $file, $line, $frames) >>
+    $grey::static::error::NO_COLOR = 1;
 
-Formats an error message with source context and optional backtrace.
+=head2 $grey::static::error::NO_BACKTRACE
 
-B<Parameters:>
+Disable stack backtrace display.
 
-=over 4
+    $grey::static::error::NO_BACKTRACE = 1;
 
-=item C<$message>
+=head2 $grey::static::error::NO_SYNTAX_HIGHLIGHT
 
-The error message text.
+Disable syntax highlighting.
 
-=item C<$file>
-
-The file where the error occurred.
-
-=item C<$line>
-
-The line number where the error occurred.
-
-=item C<$frames>
-
-Optional arrayref of C<StackFrame> objects for backtrace display.
-
-=back
-
-B<Returns:> Formatted error string ready for display.
-
-=item C<< format_warning($message, $file, $line, $frames) >>
-
-Formats a warning message with source context and optional backtrace.
-
-Parameters and return value are the same as C<format_error>, but output
-is styled as a warning (yellow instead of red).
-
-=item C<< color($name, $text) >>
-
-Applies the named color to the text. Returns uncolored text if color output
-is disabled.
-
-B<Parameters:>
-
-=over 4
-
-=item C<$name>
-
-Color name (e.g., C<red>, C<bold_blue>, C<cyan>).
-
-=item C<$text>
-
-Text to colorize.
-
-=back
-
-B<Returns:> Colorized text string, or plain text if colors are disabled.
-
-=back
+    $grey::static::error::NO_SYNTAX_HIGHLIGHT = 1;
 
 =head1 OUTPUT FORMAT
 
-Error and warning output follows this format:
+Error output follows this format:
 
-    error: <message>
-       ╭─[<file>:<line>]
-     1 │ context line before
-     2 │ line where error occurred (syntax highlighted)
-       │ ╰─ error occurred here
-     3 │ context line after
-       ╰
+    error: Invalid argument (hint: Expected a positive integer)
+       ╭─[file.pm:42]
+     40 │ context line before
+     41 │ context line before
+     42 │ my $result = process($invalid_arg);
+        │ ╰── error occurred here
+     43 │ context line after
+     44 │ context line after
+        ╰
 
     stack backtrace:
-       ├─[0] subroutine_name(arg1, arg2)
+       ├─[0] process("invalid")
        │    at file.pm:42
-       │    42 │source line
+       │    42 │my $result = process($invalid_arg);
        │
-       ╰─[1] caller_name()
-            at caller.pm:10
-            10 │source line
-
-=head1 BEHAVIOR
-
-=head2 Signal Handlers
-
-On import, this module installs handlers for:
-
-=over 4
-
-=item C<$SIG{__DIE__}>
-
-Catches C<die> calls and formats them with enhanced diagnostics.
-
-=item C<$SIG{__WARN__}>
-
-Catches C<warn> calls and formats them with enhanced diagnostics.
-
-=back
-
-=head2 Automatic Color Detection
-
-Colors are automatically disabled when STDERR is not a terminal (e.g., when
-piping to a file).
-
-=head2 Syntax Highlighting
-
-Perl source code is syntax highlighted with colors for:
-
-=over 4
-
-=item *
-
-Keywords (C<my>, C<sub>, C<if>, etc.) - bold magenta
-
-=item *
-
-Strings - green
-
-=item *
-
-Variables (C<$scalar>, C<@array>, C<%hash>) - cyan
-
-=item *
-
-Numbers - yellow
-
-=item *
-
-Comments - dim white
-
-=back
-
-=head1 DEPENDENCIES
-
-Requires C<grey::static::source> for source file caching and retrieval.
+       ╰─[1] main()
+            at script.pl:10
+            10 │process($arg);
 
 =head1 SEE ALSO
 

@@ -54,10 +54,10 @@ grey::static - Opinionated Perl module loader with curated features
 
 =head1 SYNOPSIS
 
-    use grey::static qw[ diagnostics functional stream ];
+    use grey::static qw[ error functional stream ];
 
-    # Enhanced error messages with source context and stack traces
-    die "Something went wrong";
+    # Structured errors with beautiful formatting
+    Error->throw(message => "Something went wrong");
 
     # Functional programming primitives
     my $double = Function->new(f => sub ($x) { $x * 2 });
@@ -71,7 +71,7 @@ grey::static - Opinionated Perl module loader with curated features
 
     # All features together
     use grey::static qw[
-        diagnostics
+        error
         functional
         logging
         stream
@@ -136,15 +136,19 @@ L<Path::Tiny> (required for C<io::stream> feature)
 
 grey::static provides the following features:
 
-=head2 diagnostics
+=head2 error
 
-B<Load with:> C<use grey::static qw[ diagnostics ];>
+B<Load with:> C<use grey::static qw[ error ];>
 
-Enhanced error and warning diagnostics with Rust-style error messages.
+Structured error objects with beautiful formatting inspired by Rust's error messages.
 
 B<Provides:>
 
 =over 4
+
+=item *
+
+C<Error> class - Structured errors that stringify beautifully
 
 =item *
 
@@ -164,27 +168,20 @@ Colorized output with Unicode box-drawing characters
 
 =back
 
-B<Classes:>
+B<Usage:>
 
-=over 4
-
-=item *
-
-C<grey::static::diagnostics::StackFrame> - Represents a call stack frame
-
-=item *
-
-C<grey::static::diagnostics::Formatter> - Formats errors/warnings with context
-
-=back
+    Error->throw(
+        message => "Invalid argument",
+        hint => "Expected a positive integer"
+    );
 
 B<Configuration:>
 
-    $grey::static::diagnostics::NO_COLOR = 1;
-    $grey::static::diagnostics::NO_BACKTRACE = 1;
-    $grey::static::diagnostics::NO_SYNTAX_HIGHLIGHT = 1;
+    $grey::static::error::NO_COLOR = 1;
+    $grey::static::error::NO_BACKTRACE = 1;
+    $grey::static::error::NO_SYNTAX_HIGHLIGHT = 1;
 
-B<See also:> L<grey::static::diagnostics>
+B<See also:> L<grey::static::error>
 
 =head2 functional
 
@@ -823,17 +820,17 @@ B<Example base loader:>
 =head1 SOURCE CACHING
 
 grey::static automatically loads and caches the caller's source file for use
-by the diagnostics feature. Source caching is managed by
+by the error formatting system. Source caching is managed by
 C<grey::static::source>.
 
 =head1 EXAMPLE USAGE
 
 =head2 Basic Usage
 
-    use grey::static qw[ diagnostics functional ];
+    use grey::static qw[ error functional ];
 
     my $double = Function->new(f => sub ($x) { $x * 2 });
-    die "Error: " . $double->apply(21);  # Enhanced error display
+    Error->throw(message => "Got: " . $double->apply(21));
 
 =head2 Stream Processing
 
@@ -884,7 +881,7 @@ C<grey::static::source>.
 
 =item *
 
-L<grey::static::diagnostics> - Enhanced error diagnostics
+L<grey::static::error> - Structured error objects with formatting
 
 =item *
 

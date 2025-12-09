@@ -8,7 +8,6 @@ use lib "$FindBin::Bin/lib";
 use lib "$FindBin::Bin/../../lib";
 
 use grey::static qw[
-    diagnostics
     functional
     concurrency
     datatypes::ml
