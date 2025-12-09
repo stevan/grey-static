@@ -1,6 +1,7 @@
 
 use v5.42;
 use experimental qw[ class try ];
+use grey::static::error;
 
 class Promise {
     use constant IN_PROGRESS => 'in progress';
@@ -17,7 +18,10 @@ class Promise {
     field @rejected;
 
     ADJUST {
-        $executor isa Executor || die 'The `executor` param must be a Executor';
+        Error->throw(
+            message => "Invalid 'executor' parameter for Promise",
+            hint => "Expected an Executor object, got: " . (ref($executor) || 'scalar')
+        ) unless $executor isa Executor;
 
         $status = IN_PROGRESS;
     }
@@ -68,7 +72,10 @@ class Promise {
     }
 
     method resolve ($_result) {
-        $status eq IN_PROGRESS || die "Cannot resolve. Already ($status)";
+        Error->throw(
+            message => "Cannot resolve promise",
+            hint => "Promise is already $status"
+        ) unless $status eq IN_PROGRESS;
 
         $status = RESOLVED;
         $result = $_result;
@@ -77,7 +84,10 @@ class Promise {
     }
 
     method reject ($_error) {
-        $status eq IN_PROGRESS || die "Cannot reject. Already ($status)";
+        Error->throw(
+            message => "Cannot reject promise",
+            hint => "Promise is already $status"
+        ) unless $status eq IN_PROGRESS;
 
         $status = REJECTED;
         $error  = $_error;

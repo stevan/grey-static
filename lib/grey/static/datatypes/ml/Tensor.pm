@@ -2,6 +2,7 @@
 use v5.42;
 use utf8;
 use experimental qw[ class ];
+use grey::static::error;
 
 use importer 'List::Util' => qw[ reduce ];
 
@@ -86,8 +87,10 @@ class Tensor {
         $shape   = [ map { $_ isa Scalar ? $_->get : $_ } @$shape ];
         @strides = calculate_strides($shape);
         $data    = allocate_data_array($shape, $data); # unless ref $data eq 'ARRAY';
-        die "Bad data size, expected ".$self->size." got (".(scalar @$data).")"
-            if scalar @$data != $self->size;
+        Error->throw(
+            message => "Invalid data size for Tensor",
+            hint => "Expected " . $self->size . " elements, got " . scalar(@$data)
+        ) if scalar @$data != $self->size;
     }
 
     method DUMP {
@@ -105,15 +108,20 @@ class Tensor {
     method to_list { return @$data }
 
     method index_data_array ($index) {
-        ($index >= 0 && $index < $self->size)
-            || die "Index out of bounds (${index})";
+        Error->throw(
+            message => "Tensor index out of bounds",
+            hint => "Index $index is outside valid range [0, " . ($self->size - 1) . "]"
+        ) unless ($index >= 0 && $index < $self->size);
         return $data->[ $index ];
     }
 
     method slice_data_array (@indices) {
-        ($_ >= 0 && $_ < $self->size)
-            || die "Index out of bounds (${_})"
-                foreach @indices;
+        foreach (@indices) {
+            Error->throw(
+                message => "Tensor index out of bounds",
+                hint => "Index $_ is outside valid range [0, " . ($self->size - 1) . "]"
+            ) unless ($_ >= 0 && $_ < $self->size);
+        }
         return $data->@[ @indices ]
     }
 

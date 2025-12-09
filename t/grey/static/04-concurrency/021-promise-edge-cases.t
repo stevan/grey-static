@@ -102,7 +102,7 @@ subtest 'executor parameter type checking' => sub {
         $error = $e;
     }
 
-    like($error, qr/must be a Executor/, 'invalid executor type throws error');
+    like($error, qr/Invalid 'executor' parameter|must be a Executor/, 'invalid executor type throws error');
 };
 
 # Test 7: Resolving with undef
