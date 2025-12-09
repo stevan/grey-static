@@ -76,9 +76,14 @@ grey::static - Opinionated Perl module loader with curated features
         logging
         stream
         io::stream
-        concurrency
+        concurrency::reactive
+        concurrency::util
         datatypes::ml
         datatypes::util
+        tty::ansi
+        time::stream
+        time::wheel
+        mop
     ];
 
 =head1 DESCRIPTION
@@ -568,6 +573,202 @@ B<Example:>
 
 B<See also:> L<grey::static::datatypes>
 
+=head2 tty::ansi
+
+B<Load with:> C<use grey::static qw[ tty::ansi ];>
+
+Terminal (TTY) control using ANSI escape sequences.
+
+B<Provides:>
+
+=over 4
+
+=item *
+
+Terminal size and read mode control via L<Term::ReadKey>
+
+=item *
+
+Screen control (clear, hide/show cursor, alternate buffer)
+
+=item *
+
+Cursor movement and positioning
+
+=item *
+
+RGB color control for foreground and background
+
+=item *
+
+Mouse tracking support
+
+=back
+
+B<Functions:> All functions are exported lexically and return ANSI escape sequences.
+
+Terminal operations: C<get_terminal_size()>, C<set_output_to_utf8($fh)>,
+C<set_read_mode_to_raw($fh)>, etc.
+
+Screen control: C<clear_screen()>, C<hide_cursor()>, C<show_cursor()>,
+C<enable_alt_buf()>, C<disable_alt_buf()>
+
+Colors: C<format_fg_color($rgb)>, C<format_bg_color($rgb)>, C<format_reset()>
+
+Cursor: C<home_cursor()>, C<format_move_cursor($row, $col)>, C<format_move_up($n)>
+
+Mouse: C<enable_mouse_tracking($type)>, C<disable_mouse_tracking($type)>
+
+B<Example:>
+
+    use grey::static qw[ tty::ansi ];
+
+    print enable_alt_buf();
+    print clear_screen();
+    print format_move_cursor(5, 10);
+    print format_fg_color([255, 0, 0]);
+    print "Red text!";
+    print format_reset();
+
+B<Dependencies:> Requires L<Term::ReadKey>
+
+B<See also:> L<grey::static::tty>
+
+=head2 time::stream
+
+B<Load with:> C<use grey::static qw[ functional stream time::stream ];>
+
+Time-based stream sources using high-resolution time.
+
+B<Classes:>
+
+=over 4
+
+=item *
+
+C<Time> - Stream class with time-based sources
+
+=back
+
+B<Factory methods:>
+
+=over 4
+
+=item *
+
+C<Time-E<gt>of_epoch()> - Stream of epoch timestamps
+
+=item *
+
+C<Time-E<gt>of_monotonic()> - Stream of monotonic clock values
+
+=item *
+
+C<Time-E<gt>of_delta()> - Stream of time deltas (time between reads)
+
+=back
+
+B<Example:>
+
+    my @times = Time->of_epoch()
+        ->take(5)
+        ->collect(Stream::Collectors->ToList);
+
+    my @deltas = Time->of_delta()
+        ->sleep_for(0.1)
+        ->take(5)
+        ->collect(Stream::Collectors->ToList);
+
+B<Dependencies:> Requires C<functional>, C<stream> features and L<Time::HiRes>
+
+B<See also:> L<grey::static::time>
+
+=head2 time::wheel
+
+B<Load with:> C<use grey::static qw[ time::wheel ];>
+
+Hierarchical timing wheel for efficient timer management.
+
+B<Classes:>
+
+=over 4
+
+=item *
+
+C<Timer> - Represents a timer with expiry time and event callback
+
+=item *
+
+C<Timer::Wheel> - Hierarchical timing wheel data structure
+
+=item *
+
+C<Timer::Wheel::State> - Internal state management
+
+=back
+
+B<Example:>
+
+    my $wheel = Timer::Wheel->new;
+
+    $wheel->add_timer(Timer->new(
+        expiry => 100,
+        event  => sub { say "Timer fired!" }
+    ));
+
+    $wheel->advance_by(100);  # Advances time and fires timers
+
+B<Key features:> Efficient O(1) timer insertion and deletion, supports up to 10^5 time units
+
+B<See also:> L<grey::static::time>
+
+=head2 mop
+
+B<Load with:> C<use grey::static qw[ functional stream mop ];>
+
+Meta-Object Protocol utilities for introspecting Perl packages and symbol tables.
+
+B<Classes:>
+
+=over 4
+
+=item *
+
+C<MOP> - Stream class for package introspection
+
+=item *
+
+C<MOP::Glob> - Wrapper around globs with introspection methods
+
+=item *
+
+C<MOP::Symbol> - Represents a symbol (SCALAR, ARRAY, HASH, CODE) from a glob
+
+=back
+
+B<Example:>
+
+    # Get all methods from a package
+    my @methods = MOP->namespace('MyClass')
+        ->expand_symbols(qw[ CODE ])
+        ->map(sub ($s) { $s->glob->name })
+        ->collect(Stream::Collectors->ToList);
+
+    # Walk entire package hierarchy
+    my @all = MOP->namespace('MyApp')
+        ->walk()
+        ->expand_symbols()
+        ->collect(Stream::Collectors->ToList);
+
+    # Method resolution order
+    my @mro = MOP->mro('MyClass')
+        ->expand_symbols(qw[ CODE ])
+        ->collect(Stream::Collectors->ToList);
+
+B<Dependencies:> Requires C<functional>, C<stream> features and L<B>
+
+B<See also:> L<grey::static::mop>
+
 =head1 FEATURE ARCHITECTURE
 
 grey::static supports two types of features:
@@ -708,6 +909,18 @@ L<grey::static::concurrency> - Reactive concurrency
 =item *
 
 L<grey::static::datatypes> - Data type utilities
+
+=item *
+
+L<grey::static::tty> - Terminal control and ANSI escape sequences
+
+=item *
+
+L<grey::static::time> - Time and timer utilities
+
+=item *
+
+L<grey::static::mop> - Meta-Object Protocol utilities
 
 =item *
 
