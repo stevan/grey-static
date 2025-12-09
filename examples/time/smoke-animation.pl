@@ -1,20 +1,18 @@
 #!perl
 
-use v5.40;
-use experimental qw[ class ];
+use v5.42;
+use utf8;
+use experimental qw[ class builtin ];
+use grey::static qw[ functional stream time::stream tty::ansi ];
 
-use Test::More;
-use Test::Differences;
-
-use Term::ReadKey qw[ GetTerminalSize ];
+set_output_to_utf8();
 
 use Stream;
-use Stream::Time;
+use Time;
 
 my $strands = shift(@ARGV) // 5;
 
-my ($WIDTH, $HEIGHT) = GetTerminalSize();
-
+my ($WIDTH, $HEIGHT) = get_terminal_size();
 $HEIGHT = floor($HEIGHT * 0.9);
 $WIDTH -= 4;
 
@@ -33,30 +31,22 @@ sub plot ($x, $t, @waves) {
     state $height = $HEIGHT * 0.5;
     my $wave = combine(
         [ 0.9, 15.0, \&CORE::sin, $x + ($t * 0.8) ],
-        [ 0.6, 25.0, \&CORE::cos, $x + ($t * 1.2) ],
+        [ 0.6, 18.0, \&CORE::cos, $x + ($t * 1.2) ],
         [ 0.9, 35.0, \&CORE::sin, $x + ($t * 0.9) ],
-        [ 0.3, 50.0, \&CORE::cos, $x + ($t * 1.6) ],
+        [ 0.3, 50.0, \&CORE::cos, $x + ($t * 0.6) ],
     );
     return int($height - int($wave * $height));
 }
 
-my $home_cursor  = "\e[H";
-my $clear_screen = "\e[2J";
-
-my $hide_cursor  = "\e[?25l";
-my $show_cursor  = "\e[?25h";
-
-my $enable_alt_buf  = "\e[?1049h";
-my $disable_alt_buf = "\e[?1049l";
 
 local $SIG{INT} = sub {
-    print $show_cursor; #,$disable_alt_buf;
+    print show_cursor(); #,disable_alt_buf();
     die "\nInteruppted!";
 };
 
-print $clear_screen,$hide_cursor,$enable_alt_buf;
+print clear_screen(),hide_cursor(); #,enable_alt_buf();
 
-my $t = Stream::Time
+my $t = Time
 ->of_monotonic
 ->sleep_for(0.016)
 ->map(sub ($t) {
@@ -65,21 +55,16 @@ my $t = Stream::Time
         join '' => map {
             my $col = $_;
             my $out = ' ';
-            foreach my ($i, $o) (indexed @offsets) {
-                my $color = ($i + 2);
+            for (my $i = 0; $i < scalar @offsets; $i++) {
+                my $o = $offsets[$i];
+                my $color = ($i + 220);
                 my $at = plot($col, $t * $o );
-                $out = "\e[38;5;${color}m▒\e[0m" if $at   == $row;
+                $out = "\e[38;5;${color}m▒\e[0m" if $at == $row;
             }
             $out;
         } 0 .. $WIDTH;
     } 0 .. $HEIGHT;
 })
 ->foreach(sub ($buffer) {
-    print $home_cursor,$buffer;
+    print home_cursor(),clear_screen(),$buffer;
 });
-
-
-done_testing;
-
-__DATA__
-

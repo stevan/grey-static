@@ -130,8 +130,8 @@ class Timer::Wheel {
 
     method dump_wheel {
 
-        say "-- wheel --------------------------------------------------------";
-        say "         ".(join ':' => map { sprintf '%02d' => $_ } 0 ..  9);
+        say "-- wheel -----------------------------------------------------------";
+        say "       | ".(join ' | ' => map { sprintf '%03d' => $_ } 0 ..  9).' |';
 
         foreach my $i ( 0 .. (DEPTH - 1) ) {
             my @line;
@@ -140,20 +140,23 @@ class Timer::Wheel {
                 my $idx   = ($i * 10) + $j;
                 my $count = scalar $wheel[$idx]->@*;
 
-                push @line => sprintf "\e[38;5;%dm%02d\e[0m" => $count, $count;
+                push @line => sprintf "\e[38;5;%dm%03d\e[0m" => $count, $count;
             }
-            say ' ',(shift @line),' | ',join ':' => @line;
+            say ' ',(shift @line),' | ',(join ' | ' => @line),' |';
         }
 
-        say "-----------------------------------------------------------------";
+        say "--------------------------------------------------------------------";
         say "state = ",$state;
-        say "      : ",(join ', ', $state->changes);
-        say "-----------------------------------------------------------------";
-        foreach my ($i, $x) (indexed @wheel) {
-            if (scalar @$x) {
-                say "wheel[$i] = [",(join ', ' => @$x),"]";
+        say "      | ",(join ', ', $state->changes);
+        say "--------------------------------------------------------------------";
+        foreach my ($i, $x) (indexed @wheel[0 .. 30]) {
+            if (scalar @$x > 5) {
+                say((sprintf 'wheel[%03d]' => $i)."[",(join ', ' => @{$x}[0 .. 3]),"], ...");
+            } else {
+                say((sprintf 'wheel[%03d]' => $i)."[",(join ', ' => @$x),"]");
             }
         }
-        say "-----------------------------------------------------------------";
+        say "...";
+        say "--------------------------------------------------------------------";
     }
 }
