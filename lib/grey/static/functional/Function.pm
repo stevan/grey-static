@@ -1,11 +1,19 @@
 
 use v5.42;
 use experimental qw[ class ];
+use grey::static::error;
 
 use Supplier;
 
 class Function {
     field $f :param :reader;
+
+    ADJUST {
+        Error->throw(
+            message => "Invalid 'f' parameter for Function",
+            hint => "Expected a CODE reference, got: " . (ref($f) || 'scalar')
+        ) unless ref($f) eq 'CODE';
+    }
 
     method apply ($t) { return $f->($t); }
 

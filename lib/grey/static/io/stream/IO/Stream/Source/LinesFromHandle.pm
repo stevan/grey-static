@@ -8,4 +8,6 @@ class IO::Stream::Source::LinesFromHandle :isa(Stream::Source) {
     method next { scalar $fh->getline }
 
     method has_next { !$fh->eof }
+
+    # Note: File handles are automatically closed when they go out of scope
 }

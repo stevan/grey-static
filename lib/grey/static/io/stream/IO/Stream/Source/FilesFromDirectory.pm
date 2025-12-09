@@ -1,6 +1,7 @@
 
 use v5.42;
 use experimental qw[ class ];
+use grey::static::error;
 
 class IO::Stream::Source::FilesFromDirectory :isa(Stream::Source) {
     field $dir :param :reader;
@@ -9,8 +10,10 @@ class IO::Stream::Source::FilesFromDirectory :isa(Stream::Source) {
     field $next;
 
     ADJUST {
-        opendir( $handle, $dir )
-            || die "Unable to open $dir because $!";
+        Error->throw(
+            message => "Unable to open directory: $dir",
+            hint => "Error: $!"
+        ) unless opendir( $handle, $dir );
     }
 
     method next { $next }
@@ -40,4 +43,6 @@ class IO::Stream::Source::FilesFromDirectory :isa(Stream::Source) {
         return false;
 
     }
+
+    # Note: Directory handles are automatically closed when they go out of scope
 }

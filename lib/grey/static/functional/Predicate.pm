@@ -1,9 +1,17 @@
 
 use v5.42;
 use experimental qw[ class ];
+use grey::static::error;
 
 class Predicate {
     field $f :param :reader;
+
+    ADJUST {
+        Error->throw(
+            message => "Invalid 'f' parameter for Predicate",
+            hint => "Expected a CODE reference, got: " . (ref($f) || 'scalar')
+        ) unless ref($f) eq 'CODE';
+    }
 
     method test ($t) { return (!!$f->($t)); }
 

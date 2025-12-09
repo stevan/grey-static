@@ -15,4 +15,6 @@ class IO::Stream::Source::BytesFromHandle :isa(Stream::Source) {
         return false if $result == 0;
         return true;
     }
+
+    # Note: File handles are automatically closed when they go out of scope
 }

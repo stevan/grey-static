@@ -1,16 +1,19 @@
 
 use v5.42;
 use experimental qw[ class ];
+use grey::static::error;
 
 use Timer::Wheel::State;
 
 class Timer::Wheel {
     use constant DEBUG => $ENV{DEBUG} // 0;
     use constant DEPTH => 5;
+    use constant MAX_TIMERS => 10000;
 
     field @wheel = map +[], 1 .. (DEPTH * 10);
 
     field $state = Timer::Wheel::State->new( num_gears => DEPTH - 1 );
+    field $timer_count = 0;
 
     method advance_by ($n) {
         while ($n) {
@@ -35,6 +38,7 @@ class Timer::Wheel {
             DEBUG && say "checking wheel[$index] found ".(scalar @$bucket)." timer(s)";
             while (@$bucket) {
                 my $timer = shift @$bucket;
+                $timer_count--;
                 if ($timer->expiry == $state->time) {
                     DEBUG && say "Got a timer($timer) event to fire! ";
                     $timer->event->();
@@ -66,6 +70,7 @@ class Timer::Wheel {
                         my $next_index = (($exp - 1) * 10) + $x;
                         DEBUG && say "Moving timer($timer) to index($next_index)";
                         push $wheel[$next_index]->@* => $timer;
+                        $timer_count++;
                         last;
                     }
                 }
@@ -101,7 +106,10 @@ class Timer::Wheel {
                 $exp++;
             }
         }
-        die "Wheel Overflow !! ($t)";
+        Error->throw(
+            message => "Timer wheel time overflow",
+            hint => "Time value $t exceeds maximum supported time (10^" . DEPTH . ")"
+        );
     }
 
     method calculate_timeout_for_index ($index) {
@@ -123,10 +131,18 @@ class Timer::Wheel {
     }
 
     method add_timer($timer) {
+        Error->throw(
+            message => "Timer wheel capacity exceeded",
+            hint => "Maximum number of timers (" . MAX_TIMERS . ") reached. Cannot add more timers."
+        ) if $timer_count >= MAX_TIMERS;
+
         push @{$wheel[
             $self->calculate_first_index_for_time( $timer->expiry )
         ]} => $timer;
+        $timer_count++;
     }
+
+    method timer_count { $timer_count }
 
     method dump_wheel {
 
