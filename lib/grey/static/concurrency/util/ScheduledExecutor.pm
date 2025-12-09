@@ -40,7 +40,13 @@ class ScheduledExecutor :isa(Executor) {
     # Override run() to advance time
     method run {
         while (!$self->is_done || $wheel->timer_count > 0) {
-            # Find next timer
+            # Process any queued callbacks first before advancing time
+            if (!$self->is_done) {
+                $self->tick;
+                next;
+            }
+
+            # No queued callbacks - check if we should advance time
             my $next_timeout = $wheel->find_next_timeout;
 
             if (defined $next_timeout && $next_timeout > $current_time) {
@@ -48,13 +54,15 @@ class ScheduledExecutor :isa(Executor) {
                 my $delta = $next_timeout - $current_time;
                 $wheel->advance_by($delta);
                 $current_time = $next_timeout;
+                # tick() will be called in next iteration
+                next;
             }
 
-            # Run executor tick (processes callbacks that timers added)
-            $self->tick;
-
-            # If nothing to do and no timers, we're done
+            # No queued callbacks and no timers - we're done
             last if $self->is_done && $wheel->timer_count == 0;
+
+            # Safety: If we have timers but no next_timeout, something is wrong
+            last;
         }
     }
 }

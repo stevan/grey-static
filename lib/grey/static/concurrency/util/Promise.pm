@@ -122,10 +122,72 @@ class Promise {
         }
     }
 
+    method timeout ($delay_ticks, $scheduled_executor) {
+        Error->throw(
+            message => "Invalid executor for timeout",
+            hint => "Expected a ScheduledExecutor, got: " . (ref($scheduled_executor) || 'scalar')
+        ) unless $scheduled_executor isa ScheduledExecutor;
+
+        my $timeout_promise = $self->new(executor => $scheduled_executor);
+        my $timer_id;
+
+        # Schedule timeout timer
+        $timer_id = $scheduled_executor->schedule_delayed(
+            sub {
+                # Only timeout if original promise is still pending
+                return unless $self->is_in_progress;
+                $timeout_promise->reject("Timeout after ${delay_ticks} ticks");
+            },
+            $delay_ticks
+        );
+
+        # Chain original promise to timeout promise
+        # Use then() to observe the original promise's settlement
+        $self->then(
+            sub ($value) {
+                # Original promise resolved - cancel timeout and resolve timeout promise
+                # Cancel happens first, before any callbacks run
+                $scheduled_executor->cancel_scheduled($timer_id);
+                return unless $timeout_promise->is_in_progress;
+                $timeout_promise->resolve($value);
+            },
+            sub ($error) {
+                # Original promise rejected - cancel timeout and reject timeout promise
+                $scheduled_executor->cancel_scheduled($timer_id);
+                return unless $timeout_promise->is_in_progress;
+                $timeout_promise->reject($error);
+            }
+        );
+
+        return $timeout_promise;
+    }
 
 }
 
 1;
+
+# Class method for creating delayed promise
+# Must be outside class block as a regular sub to support class method syntax
+BEGIN {
+    no strict 'refs';
+    *{'Promise::delay'} = sub {
+        my ($class, $value, $delay_ticks, $scheduled_executor) = @_;
+
+        Error->throw(
+            message => "Invalid executor for delay",
+            hint => "Expected a ScheduledExecutor, got: " . (ref($scheduled_executor) || 'scalar')
+        ) unless $scheduled_executor isa ScheduledExecutor;
+
+        my $promise = $class->new(executor => $scheduled_executor);
+
+        $scheduled_executor->schedule_delayed(
+            sub { $promise->resolve($value) },
+            $delay_ticks
+        );
+
+        return $promise;
+    };
+}
 
 __END__
 
@@ -596,6 +658,103 @@ This allows fine-grained control over when async operations execute.
 
     $executor->run;
 
+=head2 Time Operations
+
+=over 4
+
+=item C<< timeout($delay_ticks, $scheduled_executor) >>
+
+Adds a timeout to a promise. Returns a new promise that will be rejected with a
+timeout error if the original promise doesn't settle within the specified delay.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$delay_ticks>
+
+Number of ticks to wait before timing out.
+
+=item C<$scheduled_executor>
+
+A C<ScheduledExecutor> instance that provides time-based scheduling.
+
+=back
+
+B<Returns:> A new C<Promise> that:
+
+=over 4
+
+=item *
+
+Resolves with the original promise's value if it settles before the timeout
+
+=item *
+
+Rejects with a timeout error if the delay elapses first
+
+=back
+
+The timeout timer is automatically cancelled if the promise settles before the timeout.
+
+B<Example:>
+
+    my $executor = ScheduledExecutor->new;
+    my $promise = Promise->new(executor => $executor);
+
+    $promise->timeout(100, $executor)
+        ->then(
+            sub ($value) { say "Success: $value" },
+            sub ($error) { say "Error: $error" }
+        );
+
+    # Resolve before timeout
+    $executor->schedule_delayed(sub { $promise->resolve("Done!") }, 50);
+    $executor->run;  # Prints "Success: Done!"
+
+=item C<< delay($class, $value, $delay_ticks, $scheduled_executor) >>
+
+Factory method that creates a promise which resolves with the given value after
+a specified delay.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$value>
+
+The value to resolve with after the delay.
+
+=item C<$delay_ticks>
+
+Number of ticks to wait before resolving.
+
+=item C<$scheduled_executor>
+
+A C<ScheduledExecutor> instance that provides time-based scheduling.
+
+=back
+
+B<Returns:> A new C<Promise> that will resolve with C<$value> after C<$delay_ticks>.
+
+B<Example:>
+
+    my $executor = ScheduledExecutor->new;
+
+    Promise->delay("Hello", 10, $executor)
+        ->then(sub ($msg) { say $msg });
+
+    $executor->run;  # Waits 10 ticks, then prints "Hello"
+
+    # Chaining delayed promises
+    Promise->delay(5, 10, $executor)
+        ->then(sub ($x) { $x * 2 })
+        ->then(sub ($x) { say $x });
+
+    $executor->run;  # Prints "10" after 10 ticks
+
+=back
+
 =head1 LIMITATIONS
 
 =over 4
@@ -607,11 +766,8 @@ are not fully flattened. Single-level flattening works correctly.
 
 =item *
 
-Promise cancellation is not currently supported.
-
-=item *
-
-No built-in timeout mechanism.
+Promise cancellation is not currently supported (except for timeout timers which
+are automatically cancelled).
 
 =back
 
