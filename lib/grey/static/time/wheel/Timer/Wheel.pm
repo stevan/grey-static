@@ -14,6 +14,7 @@ class Timer::Wheel {
 
     field $state = Timer::Wheel::State->new( num_gears => DEPTH - 1 );
     field $timer_count = 0;
+    field %timers_by_id;
 
     method advance_by ($n) {
         while ($n) {
@@ -41,6 +42,8 @@ class Timer::Wheel {
                 $timer_count--;
                 if ($timer->expiry == $state->time) {
                     DEBUG && say "Got a timer($timer) event to fire! ";
+                    # Remove from tracking when fired
+                    delete $timers_by_id{$timer->id};
                     $timer->event->();
                 } else {
                     DEBUG && say "Got an timer($timer) to move from depth($depth) to depth(".($depth - 1).")";
@@ -71,6 +74,8 @@ class Timer::Wheel {
                         DEBUG && say "Moving timer($timer) to index($next_index)";
                         push $wheel[$next_index]->@* => $timer;
                         $timer_count++;
+                        # Update tracking with new bucket index
+                        $timers_by_id{$timer->id}{bucket_index} = $next_index;
                         last;
                     }
                 }
@@ -124,10 +129,15 @@ class Timer::Wheel {
     }
 
     method find_next_timeout {
-        foreach my ($i, $bucket) (indexed @wheel) {
-            return $self->calculate_timeout_for_index($i)
-                if scalar @$bucket;
+        my $min_expiry;
+        foreach my $bucket (@wheel) {
+            foreach my $timer (@$bucket) {
+                if (!defined $min_expiry || $timer->expiry < $min_expiry) {
+                    $min_expiry = $timer->expiry;
+                }
+            }
         }
+        return $min_expiry;
     }
 
     method add_timer($timer) {
@@ -136,10 +146,42 @@ class Timer::Wheel {
             hint => "Maximum number of timers (" . MAX_TIMERS . ") reached. Cannot add more timers."
         ) if $timer_count >= MAX_TIMERS;
 
-        push @{$wheel[
-            $self->calculate_first_index_for_time( $timer->expiry )
-        ]} => $timer;
+        # Calculate bucket based on delta from current wheel time
+        # This ensures timers added during callbacks go to the right bucket
+        my $current_time = $state->time;
+        my $delta = $timer->expiry - $current_time;
+
+        if ($delta <= 0) {
+            Error->throw(
+                message => "Cannot add timer in the past",
+                hint => "Timer expiry ($timer->expiry) must be greater than current wheel time ($current_time)"
+            );
+        }
+
+        my $index = $self->calculate_first_index_for_time( $delta );
+        DEBUG && say "add_timer: expiry=",$timer->expiry," current=$current_time delta=$delta index=$index";
+        push @{$wheel[$index]} => $timer;
         $timer_count++;
+
+        # Track for cancellation
+        $timers_by_id{$timer->id} = {
+            timer => $timer,
+            bucket_index => $index
+        };
+    }
+
+    method cancel_timer($timer_id) {
+        my $info = delete $timers_by_id{$timer_id};
+        return 0 unless $info;  # Not found
+
+        my $bucket = $wheel[$info->{bucket_index}];
+        my $timer = $info->{timer};
+
+        # Remove from bucket
+        @$bucket = grep { $_->id ne $timer_id } @$bucket;
+        $timer_count--;
+
+        return 1;  # Success
     }
 
     method timer_count { $timer_count }

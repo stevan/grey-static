@@ -22,6 +22,7 @@ sub import {
 
             # Load the util classes
             load_module('Executor');
+            load_module('ScheduledExecutor');
             load_module('Promise');
         }
         elsif ($subfeature eq 'reactive') {

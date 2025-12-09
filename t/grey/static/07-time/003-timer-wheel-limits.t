@@ -14,13 +14,13 @@ use grey::static qw[ time::wheel ];
     is($wheel->timer_count, 0, 'wheel starts with 0 timers');
 
     # Add a timer
-    my $timer1 = Timer->new(expiry => 5, event => sub { });
+    my $timer1 = Timer->new(id => 'timer1', expiry => 5, event => sub { });
     $wheel->add_timer($timer1);
 
     is($wheel->timer_count, 1, 'wheel has 1 timer after add');
 
     # Add another timer
-    my $timer2 = Timer->new(expiry => 10, event => sub { });
+    my $timer2 = Timer->new(id => 'timer2', expiry => 10, event => sub { });
     $wheel->add_timer($timer2);
 
     is($wheel->timer_count, 2, 'wheel has 2 timers after second add');
@@ -31,7 +31,7 @@ use grey::static qw[ time::wheel ];
     my $wheel = Timer::Wheel->new;
     my $fired = 0;
 
-    my $timer = Timer->new(expiry => 5, event => sub { $fired++ });
+    my $timer = Timer->new(id => 'timer3', expiry => 5, event => sub { $fired++ });
     $wheel->add_timer($timer);
 
     is($wheel->timer_count, 1, 'wheel has 1 timer');
@@ -55,7 +55,7 @@ SKIP: {
     # Should throw an error
     eval {
         for my $i (1 .. 10001) {
-            my $timer = Timer->new(expiry => $i, event => sub { });
+            my $timer = Timer->new(id => "timer$i", expiry => $i, event => sub { });
             $wheel->add_timer($timer);
         }
     };

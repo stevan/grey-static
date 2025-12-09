@@ -10,11 +10,13 @@ use grey::static qw[ time::wheel ];
 subtest 'Timer construction' => sub {
     my $fired = 0;
     my $timer = Timer->new(
+        id     => 'test1',
         expiry => 100,
         event  => sub { $fired = 1 }
     );
 
     isa_ok($timer, 'Timer');
+    is($timer->id, 'test1', 'timer has correct id');
     is($timer->expiry, 100, 'timer has correct expiry');
     is(ref $timer->event, 'CODE', 'timer has code ref event');
 
@@ -34,6 +36,7 @@ subtest 'basic timer firing' => sub {
     my $wheel = Timer::Wheel->new;
 
     $wheel->add_timer(Timer->new(
+        id     => 'timer1',
         expiry => 5,
         event  => sub { $fired = 1 }
     ));
@@ -52,9 +55,9 @@ subtest 'multiple timers' => sub {
     my @fired;
     my $wheel = Timer::Wheel->new;
 
-    $wheel->add_timer(Timer->new(expiry => 5,  event => sub { push @fired, 'A' }));
-    $wheel->add_timer(Timer->new(expiry => 10, event => sub { push @fired, 'B' }));
-    $wheel->add_timer(Timer->new(expiry => 3,  event => sub { push @fired, 'C' }));
+    $wheel->add_timer(Timer->new(id => 'A', expiry => 5,  event => sub { push @fired, 'A' }));
+    $wheel->add_timer(Timer->new(id => 'B', expiry => 10, event => sub { push @fired, 'B' }));
+    $wheel->add_timer(Timer->new(id => 'C', expiry => 3,  event => sub { push @fired, 'C' }));
 
     $wheel->advance_by(3);
     is_deeply(\@fired, ['C'], 'first timer (3) fired');
@@ -72,6 +75,7 @@ subtest 'larger expiry times' => sub {
     my $wheel = Timer::Wheel->new;
 
     $wheel->add_timer(Timer->new(
+        id     => 'large',
         expiry => 100,
         event  => sub { $fired = 1 }
     ));

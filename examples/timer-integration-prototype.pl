@@ -24,6 +24,7 @@ class ScheduledExecutor :isa(Executor) {
         my $expiry = $current_time + $delay_ticks;
 
         my $timer = Timer->new(
+            id     => $timer_id,
             expiry => $expiry,
             event  => sub {
                 delete $active_timers{$timer_id};

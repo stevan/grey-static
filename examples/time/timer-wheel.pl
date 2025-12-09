@@ -25,9 +25,10 @@ say "Testing $amount random timers ...";
 {
     my $start = time;
 
-    foreach my $t (@expected) {
+    foreach my ($i, $t) (indexed @expected) {
         my $x = $t;
         $w->add_timer(Timer->new(
+            id     => "timer$i",
             expiry => $t,
             event  => sub { push @got => $x }
         ));
