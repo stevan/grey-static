@@ -6,19 +6,20 @@ grey::static is a modern Perl module loader that provides carefully curated "fea
 
 ## Features
 
-- **diagnostics** - Rust-style error/warning messages with source context, syntax highlighting, and stack traces
-- **functional** - Functional programming primitives (Function, Predicate, Consumer, BiFunction, etc.)
-- **stream** - Lazy stream processing API inspired by Java Streams
-- **io::stream** - File and directory streaming with Path::Tiny integration
+- **error** - Structured error handling with beautiful formatting, source context, and stack traces
+- **functional** - Functional programming primitives (Function, Predicate, Consumer, BiFunction, etc.) with input validation
+- **stream** - Lazy stream processing API inspired by Java Streams with validated sources
+- **io::stream** - File and directory streaming with Path::Tiny integration and automatic handle cleanup
 - **concurrency::reactive** - Reactive Flow API with backpressure and async execution
-- **concurrency::util** - Promises and event loop executor
-- **datatypes::ml** - ML datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting
+- **concurrency::util** - Promises and event loop executor with validation
+- **datatypes::ml** - ML datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting and bounds checking
 - **datatypes::util** - Option (Some/None) and Result (Ok/Error) types
 - **tty::ansi** - Terminal control (colors, cursor, screen, mouse)
 - **time::stream** - Time-based streams (epoch, monotonic, delta)
-- **time::wheel** - Hierarchical timing wheel for efficient timer management
+- **time::wheel** - Hierarchical timing wheel with capacity limits (10,000 timers)
 - **mop** - Meta-Object Protocol for package introspection
 - **logging** - Debug logging with colorization and automatic depth tracking
+- **source** - Source file caching with LRU eviction (100 file limit)
 
 ## Requirements
 
@@ -48,13 +49,18 @@ make install
 
 ## Quick Start
 
-### Enhanced Diagnostics
+### Structured Error Handling
 
 ```perl
-use grey::static qw[ diagnostics ];
+use grey::static qw[ error ];
 
-# Errors now display with source context and stack traces
-die "Something went wrong";
+# Throw structured errors with beautiful formatting
+Error->throw(
+    message => "Invalid user ID: $id",
+    hint => "User IDs must be positive integers"
+);
+
+# Errors display with source context, syntax highlighting, and stack traces
 ```
 
 ### Functional Programming

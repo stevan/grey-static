@@ -13,28 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Core Infrastructure
 - Feature loader with hierarchical sub-feature support (e.g., `io::stream`, `datatypes::ml`)
-- Source file caching for enhanced diagnostics
+- Source file caching with LRU eviction (100 file limit, configurable via `$MAX_CACHE_SIZE`)
+- Cache statistics tracking (hits, misses, evictions, hit rate)
 - Lexical module importing utility
 
 #### Features
 
-**diagnostics**
-- Rust-style error and warning display with source context
-- Syntax highlighting in error messages
+**error**
+- Structured error objects with automatic stringification
+- Beautiful error formatting with source context and syntax highlighting
 - Full stack backtraces with file/line information
-- Configurable via package globals (`$NO_COLOR`, `$NO_BACKTRACE`, `$NO_SYNTAX_HIGHLIGHT`)
+- `Error->throw()` for throwing structured errors with optional hints
+- Automatic caller location capture
 
 **functional**
-- Function, BiFunction - Function wrappers with composition
-- Predicate - Boolean test functions with combinators (and, or, negate)
-- Consumer, BiConsumer - Side-effect functions with chaining
-- Supplier - Zero-argument value suppliers
-- Comparator - Comparison functions with reversal and chaining
+- Function, BiFunction - Function wrappers with composition and input validation
+- Predicate - Boolean test functions with combinators (and, or, negate) and validation
+- Consumer, BiConsumer - Side-effect functions with chaining and validation
+- Supplier - Zero-argument value suppliers with validation
+- Comparator - Comparison functions with reversal and chaining and validation
 - Full combinator support (compose, and_then, curry, etc.)
+- All classes validate parameters are CODE references with helpful error messages
 
 **stream**
 - Lazy stream processing API
-- Sources: FromArray, FromRange, FromIterator, FromSupplier, OfStreams
+- Sources: FromArray, FromRange, FromIterator, FromSupplier, OfStreams (all with input validation)
+  - FromArray validates ARRAY references
+  - FromRange validates numeric parameters and non-zero step
+  - FromIterator validates callable next/has_next (CODE ref or Function/Predicate objects)
 - Operations: map, grep, flatMap, flatten, take, takeUntil, peek, when, every, buffered, gather, reduce, forEach, collect, recurse
 - Collectors: ToList, ToHash
 - Pattern matching with Match and Match::Builder
@@ -44,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - IO::Stream::Files - Read file lines or bytes as streams
 - IO::Stream::Directories - List directory contents, recursive walking
 - Integration with Path::Tiny for file system operations
+- Automatic file/directory handle cleanup when streams are garbage collected
+- Proper error handling with Error objects for directory open failures
 
 **concurrency::reactive**
 - Reactive Streams implementation (Flow API)
@@ -56,13 +64,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **concurrency::util**
 - Executor - Event loop with callback scheduling
-- Promise - JavaScript-style promises with chaining
+- Promise - JavaScript-style promises with chaining and validation
+  - Validates executor parameter is an Executor object
+  - Prevents double resolution/rejection with clear error messages
 - Promise combinators: then, catch, finally
 - Promise factories: resolved, rejected
 - Automatic promise flattening in chains
 
 **datatypes::ml**
-- Tensor - N-dimensional array operations
+- Tensor - N-dimensional array operations with validation
+  - Data size validation (must match shape dimensions)
+  - Index bounds checking with helpful error messages
+  - Slice bounds validation
 - Scalar - 0-dimensional tensor
 - Vector - 1-dimensional tensor with dot product, norms
 - Matrix - 2-dimensional tensor with matmul, transpose
@@ -95,6 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - O(1) timer insertion and removal
 - Configurable depth and tick units
 - Supports 10^5 time units with default configuration
+- Capacity limit of 10,000 timers (configurable via MAX_TIMERS constant)
+- `timer_count()` method to track active timers
+- Proper error handling with Error objects for overflow conditions
 
 **mop**
 - Meta-Object Protocol for package introspection
@@ -111,10 +127,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OPEN/CLOSE for explicit depth control
 
 ### Testing
-- 873 tests across 94 test files
+- 904 tests across 98 test files
 - Comprehensive coverage of all features
 - Integration tests for feature combinations
 - Edge case testing for boundary conditions
+- Input validation tests for all critical classes
+- Resource management tests (cache eviction, timer limits)
+- Error handling tests with structured Error objects
 
 ### Documentation
 - Complete POD documentation for all major modules
@@ -127,8 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Limitations
 - **Not thread-safe** - All features designed for single-threaded use
 - **No cancellation** - Promises cannot be cancelled once started
-- **Unbounded caching** - Source file cache has no size limit
-- **Memory management** - Some operations do not limit memory usage
+- **Limited concurrency** - Timer wheel supports maximum 10,000 concurrent timers
+- **Cache eviction** - Source file cache uses simple LRU (may evict frequently used files in large codebases)
 
 ### Requirements
 - Perl v5.42+ (uses experimental `class` feature)
