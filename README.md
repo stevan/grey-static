@@ -13,6 +13,7 @@ grey::static is a modern Perl module loader that provides carefully curated "fea
 - **concurrency::reactive** - Reactive Flow API with backpressure and async execution
 - **concurrency::util** - Promises, ScheduledExecutor (time simulation), and event loop executor
 - **datatypes::numeric** - Numeric datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting and bounds checking
+- **datatypes::collections** - Immutable collections (List, Stack, Queue, Set, Map) with functional operations
 - **datatypes::util** - Option (Some/None) and Result (Ok/Error) types
 - **tty::ansi** - Terminal control (colors, cursor, screen, mouse)
 - **time::stream** - Time-based streams (epoch, monotonic, delta)
@@ -209,6 +210,46 @@ my $transposed = $m->transpose;    # [[1, 3], [2, 4]]
 my $product = $m->matmul($transposed);
 ```
 
+### Immutable Collections
+
+```perl
+use grey::static qw[ functional datatypes::collections ];
+
+# List - Ordered collection
+my $list = List->of(1, 2, 3, 4, 5);
+my $doubled = $list->map(Function->new(f => sub ($x) { $x * 2 }));
+my $evens = $list->grep(Predicate->new(f => sub ($x) { $x % 2 == 0 }));
+say $doubled;  # List[2, 4, 6, 8, 10]
+
+# Stack - LIFO collection
+my $stack = Stack->of(1, 2, 3);
+my ($top, $rest) = $stack->pop()->@*;
+say $top;      # 3
+say $rest;     # Stack[1, 2]
+
+# Queue - FIFO collection
+my $queue = Queue->of(1, 2, 3);
+my ($front, $remaining) = $queue->dequeue()->@*;
+say $front;    # 1
+
+# Set - Unique elements
+my $set = Set->of(1, 2, 3, 2, 1);
+say $set->size();  # 3 (duplicates removed)
+my $union = Set->of(1, 2)->union(Set->of(2, 3));
+say $union;    # Set{1, 2, 3}
+
+# Map - Key-value pairs
+my $map = Map->of(name => 'Alice', age => 30);
+my $name = $map->get('name');
+say $name->get();  # Alice
+
+# All collections integrate with Stream API
+my $result = $list->to_stream()
+    ->flatmap(Function->new(f => sub ($x) { Stream->of($x, $x * 2) }))
+    ->take(5)
+    ->collect(ToList->new());
+```
+
 ### Option and Result Types
 
 ```perl
@@ -240,6 +281,7 @@ use grey::static qw[
     concurrency::reactive
     concurrency::util
     datatypes::numeric
+    datatypes::collections
     datatypes::util
     tty::ansi
     time::stream

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **datatypes::collections** - Immutable collection classes with functional operations
+  - **List** - Ordered collection with indexed access, map, grep, reduce, find, any, all, none
+  - **Stack** - LIFO (Last-In-First-Out) collection with push/pop/peek
+  - **Queue** - FIFO (First-In-First-Out) collection with enqueue/dequeue/peek
+  - **Set** - Unordered unique elements with union, intersection, difference, subset/superset
+  - **Map** - Key-value pairs with map, grep, map_keys, map_entries, reduce
+  - All collections integrate with Stream API via `to_stream()`
+  - All collections are immutable (operations return new instances)
+  - Full POD documentation with examples for each class
+  - Comprehensive test coverage (19 test files, all passing)
+
 - **ScheduledExecutor** - Queue-based time simulator for testing async operations
   - `schedule_delayed()` - Schedule callbacks with simulated delays
   - `cancel_scheduled()` - Cancel pending timers
@@ -42,11 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - Comprehensive POD documentation added:
+  - **Collections** - List, Stack, Queue, Set, Map with constructors, operations, examples
   - **ScheduledExecutor** - Architecture, usage patterns, performance characteristics
   - **Executor** - Event loop model, chaining, cycle detection
   - **Stream time operations** - Throttle, Debounce, Timeout with usage examples
   - All POD includes integration examples and comparison sections
 - TEST_AUDIT_RESULTS.md - Complete test suite audit report
+- docs/collections-api.md - Collection design patterns and usage guidelines
 
 ### Testing
 - **937 tests** across 98 test files (up from 904)
