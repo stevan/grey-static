@@ -123,7 +123,7 @@ All notable changes to grey::static will be documented in this file.
 - io::stream: File and directory streaming
 - concurrency::reactive: Reactive Flow API with backpressure
 - concurrency::util: Executor and Promise
-- datatypes::ml: Tensor, Scalar, Vector, Matrix
+- datatypes::numeric: Tensor, Scalar, Vector, Matrix
 - datatypes::util: Option and Result
 - tty::ansi: Terminal control (cursor, colors, mouse)
 - time::stream: Time-based streams

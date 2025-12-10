@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'sum method - 1D tensor sum' => sub {
     my $t = Tensor->initialize([5], [1, 2, 3, 4, 5]);

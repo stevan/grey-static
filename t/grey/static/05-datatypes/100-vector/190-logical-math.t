@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'not method - logical not operation' => sub {
     my $v = Vector->initialize(4, [1, 0, 2, 0] );

@@ -7,7 +7,7 @@ A reactive event processing system demonstrating grey::static's concurrency feat
 - **concurrency** - Flow::Publisher, Flow::Subscriber, reactive pipelines
 - **functional** - Predicate for filtering, Consumer for event handling
 - **datatypes::util** - Result for validation
-- **datatypes::ml** - Vector for statistical analysis
+- **datatypes::numeric** - Vector for statistical analysis
 - **diagnostics** - Error handling with source context
 
 ## What It Does

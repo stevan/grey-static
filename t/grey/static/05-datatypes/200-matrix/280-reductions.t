@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'sum method - basic summation' => sub {
     my $m = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );

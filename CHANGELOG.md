@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Core Infrastructure
-- Feature loader with hierarchical sub-feature support (e.g., `io::stream`, `datatypes::ml`)
+- Feature loader with hierarchical sub-feature support (e.g., `io::stream`, `datatypes::numeric`)
 - Source file caching with LRU eviction (100 file limit, configurable via `$MAX_CACHE_SIZE`)
 - Cache statistics tracking (hits, misses, evictions, hit rate)
 - Lexical module importing utility
@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Promise factories: resolved, rejected
 - Automatic promise flattening in chains
 
-**datatypes::ml**
+**datatypes::numeric**
 - Tensor - N-dimensional array operations with validation
   - Data size validation (must match shape dimensions)
   - Index bounds checking with helpful error messages

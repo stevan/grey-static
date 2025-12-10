@@ -1,7 +1,7 @@
 use v5.42;
 use experimental qw[ class ];
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 class TimeSeriesAnalyzer {
 

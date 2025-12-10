@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'trunc method - truncate to integer part' => sub {
     my $t = Tensor->initialize([5], [1.2, 1.7, -2.3, -2.9, 0.5]);

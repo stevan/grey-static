@@ -78,7 +78,7 @@ grey::static - Opinionated Perl module loader with curated features
         io::stream
         concurrency::reactive
         concurrency::util
-        datatypes::ml
+        datatypes::numeric
         datatypes::util
         tty::ansi
         time::stream
@@ -473,9 +473,9 @@ B<Key features:> Promise chaining, error propagation, promise flattening, event 
 
 B<See also:> L<grey::static::concurrency>, L<Promise>, L<Executor>
 
-=head2 datatypes::ml
+=head2 datatypes::numeric
 
-B<Load with:> C<use grey::static qw[ datatypes::ml ];>
+B<Load with:> C<use grey::static qw[ datatypes::numeric ];>
 
 Machine learning oriented datatypes for numerical computation.
 

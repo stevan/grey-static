@@ -10,7 +10,7 @@ use lib "$FindBin::Bin/../../lib";
 use grey::static qw[
     functional
     concurrency
-    datatypes::ml
+    datatypes::numeric
 ];
 
 use EventGenerator;

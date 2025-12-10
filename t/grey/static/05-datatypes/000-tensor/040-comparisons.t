@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'eq method - tensor equality with scalar' => sub {
     my $t = Tensor->initialize([3], [1, 2, 3]);

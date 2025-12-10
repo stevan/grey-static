@@ -12,7 +12,7 @@ use grey::static qw[
     stream
     io::stream
     datatypes::util
-    datatypes::ml
+    datatypes::numeric
 ];
 
 use LogParser;

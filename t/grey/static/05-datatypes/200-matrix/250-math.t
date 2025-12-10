@@ -5,8 +5,8 @@ use experimental qw[ class ];
 use Test::More;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
+use grey::static qw[ datatypes::numeric ];
 
 my $matrix = Matrix->new( shape => [2, 2], data => [1, 2, 3, 4] );
 

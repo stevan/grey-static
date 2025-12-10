@@ -12,7 +12,7 @@ grey::static is a modern Perl module loader that provides carefully curated "fea
 - **io::stream** - File and directory streaming with Path::Tiny integration and automatic handle cleanup
 - **concurrency::reactive** - Reactive Flow API with backpressure and async execution
 - **concurrency::util** - Promises, ScheduledExecutor (time simulation), and event loop executor
-- **datatypes::ml** - ML datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting and bounds checking
+- **datatypes::numeric** - Numeric datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting and bounds checking
 - **datatypes::util** - Option (Some/None) and Result (Ok/Error) types
 - **tty::ansi** - Terminal control (colors, cursor, screen, mouse)
 - **time::stream** - Time-based streams (epoch, monotonic, delta)
@@ -191,10 +191,10 @@ Promise->delay("Hello", 10, $scheduled)
 $scheduled->run();
 ```
 
-### ML Datatypes
+### Numeric Datatypes
 
 ```perl
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 # Vectors and matrices with broadcasting
 my $v1 = Vector->new([1, 2, 3]);
@@ -239,7 +239,7 @@ use grey::static qw[
     io::stream
     concurrency::reactive
     concurrency::util
-    datatypes::ml
+    datatypes::numeric
     datatypes::util
     tty::ansi
     time::stream

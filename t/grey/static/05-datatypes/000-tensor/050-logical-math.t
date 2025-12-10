@@ -5,7 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 subtest 'not method - logical NOT on tensor' => sub {
     my $t = Tensor->initialize([3], [0, 1, 2]);

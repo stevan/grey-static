@@ -16,11 +16,11 @@ sub import {
 
     # Load each subfeature
     for my $subfeature (@subfeatures) {
-        if ($subfeature eq 'ml') {
-            # Add the ml directory to @INC
-            use lib File::Basename::dirname(__FILE__) . '/datatypes/ml';
+        if ($subfeature eq 'numeric') {
+            # Add the numeric directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/datatypes/numeric';
 
-            # Load the ML datatype classes
+            # Load the numeric datatype classes
             load_module('Tensor');
             load_module('Scalar');
             load_module('Vector');
@@ -76,8 +76,8 @@ grey::static::datatypes - Data type utilities
     say $ok->get_or_else(0);     # 42
     say $err->get_or_else(0);    # 0
 
-    # Using with ml datatypes
-    use grey::static qw[ datatypes::ml ];
+    # Using with numeric datatypes
+    use grey::static qw[ datatypes::numeric ];
 
     my $tensor = Tensor->initialize([2, 3], [1, 2, 3, 4, 5, 6]);
     my $vector = Vector->new([1, 2, 3]);
@@ -93,9 +93,9 @@ The C<datatypes> feature provides data type utilities organized as sub-features.
 
 Provides utility types for safer data handling: C<Option> and C<Result>.
 
-=head2 datatypes::ml
+=head2 datatypes::numeric
 
-Provides machine learning oriented datatypes: C<Tensor>, C<Scalar>, C<Vector>,
+Provides numeric computation datatypes: C<Tensor>, C<Scalar>, C<Vector>,
 and C<Matrix>.
 
 =head1 CLASSES (datatypes::util)
@@ -226,10 +226,10 @@ Also available via stringification overload.
 
 =back
 
-=head1 CLASSES (datatypes::ml)
+=head1 CLASSES (datatypes::numeric)
 
-The C<datatypes::ml> sub-feature provides the following classes for numerical
-and machine learning computations:
+The C<datatypes::numeric> sub-feature provides the following classes for numerical
+computations:
 
 =head2 Tensor
 

@@ -5,7 +5,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use lib "$FindBin::Bin/../../../lib";
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 use TimeSeriesAnalyzer;
 
 subtest 'analyze with no anomalies' => sub {

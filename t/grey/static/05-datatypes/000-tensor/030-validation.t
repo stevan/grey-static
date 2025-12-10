@@ -5,7 +5,7 @@ use experimental qw[ class try ];
 
 use Test::More;
 
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
 
 # Test Tensor data size validation
 subtest 'Tensor data size validation' => sub {

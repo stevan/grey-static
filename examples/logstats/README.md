@@ -10,7 +10,7 @@ This example showcases:
 - **stream** - Processing log lines lazily with map/grep/reduce
 - **functional** - Using Predicate for filtering
 - **datatypes::util** - Using Result for safe parsing with error handling
-- **datatypes::ml** - Using Vector for time series anomaly detection
+- **datatypes::numeric** - Using Vector for time series anomaly detection
 - **diagnostics** - Beautiful error messages for malformed log entries
 
 ## What It Does

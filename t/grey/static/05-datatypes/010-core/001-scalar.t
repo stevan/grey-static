@@ -5,9 +5,9 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper;
 
-use grey::static qw[ datatypes::ml ];
-use grey::static qw[ datatypes::ml ];
-use grey::static qw[ datatypes::ml ];
+use grey::static qw[ datatypes::numeric ];
+use grey::static qw[ datatypes::numeric ];
+use grey::static qw[ datatypes::numeric ];
 
 my $x = Scalar->initialize(2);
 my $y = Scalar->initialize(3);

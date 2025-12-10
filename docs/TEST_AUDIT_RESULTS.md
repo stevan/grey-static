@@ -247,7 +247,7 @@ The concurrency feature demonstrates strong testing discipline:
 
 ### 3. Strong ML Datatypes Coverage
 
-The datatypes::ml feature shows mature testing:
+The datatypes::numeric feature shows mature testing:
 - Tensor operations (193 tests across 29 files)
 - Scalar, Vector, Matrix with comprehensive operations
 - Mathematical operations, comparisons, logical operations
