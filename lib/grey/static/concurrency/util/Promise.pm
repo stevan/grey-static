@@ -51,10 +51,21 @@ class Promise {
             }
 
             if ( $result isa Promise ) {
-                $result->then(
-                    sub { $p->resolve(@_); () },
-                    sub { $p->reject(@_);  () },
-                );
+                # Recursively flatten promises (handles deeply nested promises)
+                my $flatten; $flatten = sub ($promise) {
+                    $promise->then(
+                        sub ($inner) {
+                            if ($inner isa Promise) {
+                                $flatten->($inner);  # Continue flattening
+                            } else {
+                                $p->resolve($inner);  # Base case
+                            }
+                            ()
+                        },
+                        sub { $p->reject(@_); () }
+                    );
+                };
+                $flatten->($result);
             }
             else {
                 $p->resolve( $result );
@@ -482,9 +493,9 @@ When a C<then()> callback returns a Promise, it is automatically flattened:
 
 The inner promise's value is extracted and passed to the next C<then()> in the chain.
 
-B<Note:> Deeply nested promises (promise → promise → promise → value) are not
-currently flattened recursively. For best results, avoid creating promises that
-resolve to other promises.
+Promise flattening is recursive, so deeply nested promises (promise → promise →
+promise → value) are fully flattened. The final value is always extracted regardless
+of nesting depth.
 
 =head1 ERROR PROPAGATION
 
@@ -752,11 +763,6 @@ B<Example:>
 =head1 LIMITATIONS
 
 =over 4
-
-=item *
-
-Deeply nested promises (promise resolving to a promise resolving to a promise...)
-are not fully flattened. Single-level flattening works correctly.
 
 =item *
 

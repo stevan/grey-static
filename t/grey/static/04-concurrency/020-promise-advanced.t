@@ -133,32 +133,28 @@ subtest 'catch handler recovery' => sub {
 };
 
 # Test 6: Nested promise flattening
-SKIP: {
-    skip 'Deeply nested promise flattening not yet implemented', 1;
+subtest 'nested promise flattening' => sub {
+    my $executor = Executor->new;
+    my $promise = Promise->new(executor => $executor);
 
-    subtest 'nested promise flattening' => sub {
-        my $executor = Executor->new;
-        my $promise = Promise->new(executor => $executor);
+    my $result;
+    $promise
+        ->then(sub ($x) {
+            my $inner1 = Promise->new(executor => $executor);
+            $executor->next_tick(sub {
+                my $inner2 = Promise->new(executor => $executor);
+                $executor->next_tick(sub { $inner2->resolve($x * 3) });
+                $inner1->resolve($inner2);
+            });
+            return $inner1;
+        })
+        ->then(sub ($x) { $result = $x });
 
-        my $result;
-        $promise
-            ->then(sub ($x) {
-                my $inner1 = Promise->new(executor => $executor);
-                $executor->next_tick(sub {
-                    my $inner2 = Promise->new(executor => $executor);
-                    $executor->next_tick(sub { $inner2->resolve($x * 3) });
-                    $inner1->resolve($inner2);
-                });
-                return $inner1;
-            })
-            ->then(sub ($x) { $result = $x });
+    $promise->resolve(7);
+    $executor->run;
 
-        $promise->resolve(7);
-        $executor->run;
-
-        is($result, 21, 'deeply nested promises are flattened');
-    };
-}
+    is($result, 21, 'deeply nested promises are flattened');
+};
 
 # Test 7: Promise returned from catch handler
 subtest 'promise returned from catch handler' => sub {
