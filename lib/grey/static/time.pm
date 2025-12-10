@@ -23,14 +23,6 @@ sub import {
             # Load the Time stream classes
             load_module('Time');
         }
-        elsif ($subfeature eq 'wheel') {
-            # Add the wheel directory to @INC
-            use lib File::Basename::dirname(__FILE__) . '/time/wheel';
-
-            # Load the Timer::Wheel classes
-            load_module('Timer');
-            load_module('Timer::Wheel');
-        }
         else {
             die "Unknown time subfeature: $subfeature";
         }
@@ -69,28 +61,11 @@ grey::static::time - Time and timer utilities
         ->sleep_for(0.1)
         ->collect(Stream::Collectors->ToList);
 
-    # Timer wheel for efficient timer management
-    use grey::static qw[ time::wheel ];
-
-    my $wheel = Timer::Wheel->new;
-    $wheel->add_timer(Timer->new(expiry => 100, event => sub { say "Fired!" }));
-    $wheel->advance_by(100);
-
 =head1 DESCRIPTION
 
-The C<time> feature provides time and timer utilities organized as sub-features:
+The C<time> feature provides time utilities organized as sub-features.
 
-=over 4
-
-=item *
-
-C<time::stream> - Stream-based time sources (epoch, monotonic, delta)
-
-=item *
-
-C<time::wheel> - Hierarchical timer wheel for efficient timer management
-
-=back
+Currently available: C<time::stream> - Stream-based time sources (epoch, monotonic, delta)
 
 =head1 SUB-FEATURES
 
@@ -99,13 +74,6 @@ C<time::wheel> - Hierarchical timer wheel for efficient timer management
 Provides C<Time> class which extends C<Stream> with time-based sources.
 
 B<Dependencies:> Requires C<functional> and C<stream> features, plus L<Time::HiRes>.
-
-=head2 time::wheel
-
-Provides C<Timer> and C<Timer::Wheel> classes for efficient timer management
-using a hierarchical timing wheel data structure.
-
-B<Dependencies:> None
 
 =head1 CLASSES
 
@@ -145,109 +113,9 @@ Returns C<$self> for method chaining.
 
 =back
 
-=head2 Timer (time::wheel)
-
-Represents a timer with an expiry time and event callback.
-
-=head3 Constructor
-
-    my $timer = Timer->new(
-        expiry => 100,           # Time when timer expires
-        event  => sub { ... },   # Callback to invoke on expiry
-    );
-
-=head3 Methods
-
-=over 4
-
-=item C<expiry()>
-
-Returns the expiry time for this timer.
-
-=item C<event()>
-
-Returns the event callback for this timer.
-
-=back
-
-=head2 Timer::Wheel (time::wheel)
-
-Hierarchical timing wheel for efficient timer management.
-
-=head3 Constructor
-
-    my $wheel = Timer::Wheel->new;
-
-Creates a new timing wheel with 5 depth levels (gears) supporting timers
-up to 10^5 time units.
-
-=head3 Methods
-
-=over 4
-
-=item C<add_timer($timer)>
-
-Adds a timer to the wheel. The timer is placed in the appropriate bucket
-based on its expiry time.
-
-=item C<advance_by($n)>
-
-Advances the wheel by C<$n> time units, firing any timers that have expired
-and moving timers between buckets as needed.
-
-=item C<find_next_timeout()>
-
-Returns the time until the next timer will fire, or C<undef> if no timers.
-
-=item C<dump_wheel()>
-
-Prints a visual representation of the wheel state (for debugging).
-
-=back
-
-=head2 Timer::Wheel::State (time::wheel)
-
-Internal state management for the timing wheel.
-
-=head3 Constructor
-
-    my $state = Timer::Wheel::State->new(num_gears => 4);
-
-=head3 Methods
-
-=over 4
-
-=item C<advance()>
-
-Advances the wheel state by one time unit, updating gears and tracking changes.
-
-=item C<time()>
-
-Returns the current time value.
-
-=item C<gears()>
-
-Returns the array of gear values.
-
-=item C<changes()>
-
-Returns the array of gear changes from the last advance.
-
-=back
-
 =head1 DEPENDENCIES
 
-=over 4
-
-=item *
-
 C<time::stream> requires L<Time::HiRes>, C<functional>, and C<stream> features
-
-=item *
-
-C<time::wheel> has no external dependencies
-
-=back
 
 =head1 SEE ALSO
 

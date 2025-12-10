@@ -3,7 +3,7 @@ use v5.42;
 use experimental qw[ class ];
 
 # Simple queue-based scheduled executor
-# No hierarchical timer wheel - just a sorted list of timers
+# Uses a sorted list of timers for efficient scheduling
 class ScheduledExecutor :isa(Executor) {
     field $current_time = 0;
     field $next_timer_id = 1;

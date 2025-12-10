@@ -82,7 +82,6 @@ grey::static - Opinionated Perl module loader with curated features
         datatypes::util
         tty::ansi
         time::stream
-        time::wheel
         mop
     ];
 
@@ -677,45 +676,6 @@ B<Example:>
         ->collect(Stream::Collectors->ToList);
 
 B<Dependencies:> Requires C<functional>, C<stream> features and L<Time::HiRes>
-
-B<See also:> L<grey::static::time>
-
-=head2 time::wheel
-
-B<Load with:> C<use grey::static qw[ time::wheel ];>
-
-Hierarchical timing wheel for efficient timer management.
-
-B<Classes:>
-
-=over 4
-
-=item *
-
-C<Timer> - Represents a timer with expiry time and event callback
-
-=item *
-
-C<Timer::Wheel> - Hierarchical timing wheel data structure
-
-=item *
-
-C<Timer::Wheel::State> - Internal state management
-
-=back
-
-B<Example:>
-
-    my $wheel = Timer::Wheel->new;
-
-    $wheel->add_timer(Timer->new(
-        expiry => 100,
-        event  => sub { say "Timer fired!" }
-    ));
-
-    $wheel->advance_by(100);  # Advances time and fires timers
-
-B<Key features:> Efficient O(1) timer insertion and deletion, supports up to 10^5 time units
 
 B<See also:> L<grey::static::time>
 

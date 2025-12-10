@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Test ScheduledExecutor - Timer::Wheel + Executor integration
+# Test ScheduledExecutor - Queue-based timer scheduling with Executor
 
 use v5.42;
 use Test::More;
