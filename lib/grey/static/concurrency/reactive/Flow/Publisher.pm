@@ -66,9 +66,12 @@ class Flow::Publisher {
             # Drain any buffered items
             $self->drain_buffer;
 
+            # Capture subscription to avoid undefined value if it's cleared
+            my $sub = $subscription;
+
             # Then schedule completion
             $executor->next_tick(sub {
-                $subscription->on_completed;
+                $sub->on_completed if $sub;
                 $callback->() if $callback;
             });
 

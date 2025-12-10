@@ -60,7 +60,7 @@ class Flow::Operation {
     }
 
     method on_next ($e) {
-        $upstream->request(1);
+        $upstream->request(1) if $upstream;
         $executor->next_tick(sub {
             $self->apply( $e );
         });

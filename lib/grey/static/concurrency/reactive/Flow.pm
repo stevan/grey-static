@@ -9,6 +9,8 @@ use Flow::Operation;
 
 use Flow::Operation::Grep;
 use Flow::Operation::Map;
+use Flow::Operation::Take;
+use Flow::Operation::Skip;
 
 class Flow {
     field $source :param :reader;
@@ -50,6 +52,21 @@ class Flow {
         push @ops => Flow::Operation::Grep->new(
             f => blessed $f ? $f : Predicate->new( f => $f )
         );
+        return $self;
+    }
+
+    method filter ($f) {
+        # Alias for grep (more common name in reactive streams)
+        return $self->grep($f);
+    }
+
+    method take ($n) {
+        push @ops => Flow::Operation::Take->new( n => $n );
+        return $self;
+    }
+
+    method skip ($n) {
+        push @ops => Flow::Operation::Skip->new( n => $n );
         return $self;
     }
 

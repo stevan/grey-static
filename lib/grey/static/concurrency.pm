@@ -59,7 +59,8 @@ grey::static::concurrency - Reactive flow-based concurrency primitives
 
     Flow->from($publisher)
         ->map(sub ($x) { $x * 2 })
-        ->grep(sub ($x) { $x > 10 })
+        ->filter(sub ($x) { $x > 10 })
+        ->take(5)
         ->to(sub ($x) { say "Result: $x" }, request_size => 5)
         ->build;
 
@@ -185,6 +186,57 @@ B<Parameters:>
 
 Either a code reference or a C<Predicate> object. Returns true to keep
 the element, false to filter it out.
+
+=back
+
+B<Returns:> C<$self> for method chaining.
+
+=item C<< filter($f) >>
+
+Alias for C<grep()>. Adds a filter operation to select elements.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$f>
+
+Either a code reference or a C<Predicate> object. Returns true to keep
+the element, false to filter it out.
+
+=back
+
+B<Returns:> C<$self> for method chaining.
+
+=item C<< take($n) >>
+
+Adds an operation to limit output to the first C<$n> elements.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$n>
+
+Number of elements to take. After emitting N elements, the stream
+completes and upstream is cancelled.
+
+=back
+
+B<Returns:> C<$self> for method chaining.
+
+=item C<< skip($n) >>
+
+Adds an operation to skip the first C<$n> elements.
+
+B<Parameters:>
+
+=over 4
+
+=item C<$n>
+
+Number of elements to skip. After skipping N elements, all remaining
+elements are emitted.
 
 =back
 
@@ -414,6 +466,14 @@ Transforms elements using a C<Function>.
 =item C<Flow::Operation::Grep>
 
 Filters elements using a C<Predicate>.
+
+=item C<Flow::Operation::Take>
+
+Limits output to first N elements.
+
+=item C<Flow::Operation::Skip>
+
+Skips first N elements.
 
 =back
 
