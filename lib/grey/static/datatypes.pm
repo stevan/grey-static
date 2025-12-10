@@ -26,6 +26,17 @@ sub import {
             load_module('Vector');
             load_module('Matrix');
         }
+        elsif ($subfeature eq 'collections') {
+            # Add the collections directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/datatypes/collections';
+
+            # Load the collection classes
+            load_module('List');
+            load_module('Stack');
+            load_module('Queue');
+            load_module('Set');
+            load_module('Map');
+        }
         elsif ($subfeature eq 'util') {
             use lib File::Basename::dirname(__FILE__) . '/datatypes/util';
             load_module('Result');
