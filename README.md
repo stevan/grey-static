@@ -11,12 +11,11 @@ grey::static is a modern Perl module loader that provides carefully curated "fea
 - **stream** - Lazy stream processing API inspired by Java Streams with validated sources
 - **io::stream** - File and directory streaming with Path::Tiny integration and automatic handle cleanup
 - **concurrency::reactive** - Reactive Flow API with backpressure and async execution
-- **concurrency::util** - Promises and event loop executor with validation
+- **concurrency::util** - Promises, ScheduledExecutor (time simulation), and event loop executor
 - **datatypes::ml** - ML datatypes (Tensor, Scalar, Vector, Matrix) with broadcasting and bounds checking
 - **datatypes::util** - Option (Some/None) and Result (Ok/Error) types
 - **tty::ansi** - Terminal control (colors, cursor, screen, mouse)
 - **time::stream** - Time-based streams (epoch, monotonic, delta)
-- **time::wheel** - Hierarchical timing wheel with capacity limits (10,000 timers)
 - **mop** - Meta-Object Protocol for package introspection
 - **logging** - Debug logging with colorization and automatic depth tracking
 - **source** - Source file caching with LRU eviction (100 file limit)
@@ -102,6 +101,16 @@ Stream->iterate(0, sub ($x) { $x + 1 })
     ->take(5)
     ->collect(Stream::Collectors->ToList);
 # [0, 2, 4, 6, 8]
+
+# Time-based operations
+use grey::static qw[ stream concurrency::util ];
+
+my $executor = ScheduledExecutor->new;
+Stream->of(1, 2, 3, 4, 5)
+    ->throttle(10, $executor)    # Rate limit
+    ->debounce(5, $executor)     # Coalesce changes
+    ->timeout(50, $executor)     # Enforce time limit
+    ->collect(Stream::Collectors->ToList);
 ```
 
 ### File I/O
@@ -148,19 +157,38 @@ $pub->map(sub ($x) { $x + 1 })
 $executor->tick for 1 .. 10;
 ```
 
-### Promises
+### Promises and Scheduling
 
 ```perl
 use grey::static qw[ concurrency::util ];
 
+# Basic promises
 my $executor = Executor->new;
-
 Promise->resolved($executor, 42)
     ->then(sub ($x) { $x * 2 })
     ->then(sub ($x) { say "Result: $x" })  # Result: 84
     ->catch(sub ($err) { warn "Error: $err" });
-
 $executor->run_until_empty;
+
+# Time-based operations with ScheduledExecutor
+my $scheduled = ScheduledExecutor->new;
+
+# Delayed execution
+$scheduled->schedule_delayed(sub { say "After 10 ticks" }, 10);
+$scheduled->run();
+
+# Promise with timeout
+my $promise = Promise->new(executor => $scheduled);
+$promise->timeout(50, $scheduled)
+    ->then(
+        sub ($value) { say "Success: $value" },
+        sub ($error) { say "Timeout: $error" }
+    );
+
+# Delayed promise
+Promise->delay("Hello", 10, $scheduled)
+    ->then(sub ($msg) { say $msg });
+$scheduled->run();
 ```
 
 ### ML Datatypes
@@ -215,7 +243,6 @@ use grey::static qw[
     datatypes::util
     tty::ansi
     time::stream
-    time::wheel
     mop
     logging
 ];
@@ -272,7 +299,7 @@ grey::static provides opinionated, curated features that work well together:
 ## Limitations
 
 - **Not thread-safe** - Designed for single-threaded use only
-- **No cancellation** - Promises cannot be cancelled once started
+- **Simulated time** - ScheduledExecutor uses simulated ticks, not real-world time
 - **Memory unbounded** - Source file cache and some operations have no built-in size limits
 
 ## Contributing
