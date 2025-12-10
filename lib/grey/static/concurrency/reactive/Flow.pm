@@ -6,6 +6,7 @@ use Flow::Publisher;
 use Flow::Subscriber;
 use Flow::Subscription;
 use Flow::Operation;
+use Flow::Publishers;
 
 use Flow::Operation::Grep;
 use Flow::Operation::Map;
