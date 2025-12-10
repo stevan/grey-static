@@ -18,13 +18,16 @@ subtest 'timeout - promise resolves before timeout' => sub {
             sub ($error) { $result = "Error: $error" }
         );
 
-    # Resolve after 50 ticks (before 100-tick timeout)
+    # Resolve after 50ms (before 100ms timeout)
+    my $start = $executor->current_time;
     $executor->schedule_delayed(sub { $promise->resolve("Done!") }, 50);
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, "Success: Done!", 'promise resolved before timeout');
-    is($executor->current_time, 50, 'time advanced to resolution point');
+    cmp_ok($elapsed, '>=', 50, 'at least 50ms elapsed');
+    cmp_ok($elapsed, '<', 100, 'less than 100ms elapsed');
 };
 
 # Test timeout() with promise that times out
@@ -39,13 +42,15 @@ subtest 'timeout - promise times out' => sub {
             sub ($error) { $result = "Error: $error" }
         );
 
-    # Resolve after 50 ticks (after 30-tick timeout)
+    # Resolve after 50ms (after 30ms timeout)
+    my $start = $executor->current_time;
     $executor->schedule_delayed(sub { $promise->resolve("Too late!") }, 50);
 
     $executor->run;
 
-    like($result, qr/Error: Timeout after 30 ticks/, 'promise timed out');
-    is($executor->current_time, 50, 'time advanced through all scheduled timers');
+    my $elapsed = $executor->current_time - $start;
+    like($result, qr/Error: Timeout after 30ms/, 'promise timed out');
+    cmp_ok($elapsed, '>=', 30, 'at least 30ms elapsed (timed out)');
 };
 
 # Test timeout() with promise that rejects before timeout
@@ -60,13 +65,16 @@ subtest 'timeout - promise rejects before timeout' => sub {
             sub ($error) { $result = "Error: $error" }
         );
 
-    # Reject after 50 ticks (before 100-tick timeout)
+    # Reject after 50ms (before 100ms timeout)
+    my $start = $executor->current_time;
     $executor->schedule_delayed(sub { $promise->reject("Failed!") }, 50);
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, "Error: Failed!", 'promise rejected before timeout');
-    is($executor->current_time, 50, 'time advanced to rejection point');
+    cmp_ok($elapsed, '>=', 50, 'at least 50ms elapsed');
+    cmp_ok($elapsed, '<', 100, 'less than 100ms elapsed');
 };
 
 # Test timeout() with immediately resolved promise
@@ -78,6 +86,7 @@ subtest 'timeout - immediately resolved promise' => sub {
     # Resolve immediately
     $promise->resolve("Immediate!");
 
+    my $start = $executor->current_time;
     $promise->timeout(100, $executor)
         ->then(
             sub ($value) { $result = "Success: $value" },
@@ -86,8 +95,9 @@ subtest 'timeout - immediately resolved promise' => sub {
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, "Success: Immediate!", 'immediately resolved promise works with timeout');
-    is($executor->current_time, 0, 'no time advancement needed');
+    cmp_ok($elapsed, '<', 5, 'minimal time elapsed (no delays scheduled)');
 };
 
 # Test delay() factory method
@@ -95,13 +105,16 @@ subtest 'delay - basic delayed resolution' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
+    my $start = $executor->current_time;
     Promise->delay("Hello", 10, $executor)
         ->then(sub ($msg) { $result = $msg });
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, "Hello", 'delayed promise resolved with correct value');
-    is($executor->current_time, 10, 'time advanced to delay point');
+    cmp_ok($elapsed, '>=', 10, 'at least 10ms elapsed');
+    cmp_ok($elapsed, '<', 30, 'less than 30ms elapsed');
 };
 
 # Test delay() with promise chaining
@@ -109,6 +122,7 @@ subtest 'delay - chaining with transformations' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
+    my $start = $executor->current_time;
     Promise->delay(5, 10, $executor)
         ->then(sub ($x) { $x * 2 })
         ->then(sub ($x) { $x + 3 })
@@ -116,8 +130,10 @@ subtest 'delay - chaining with transformations' => sub {
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, 13, 'delayed promise chains correctly');
-    is($executor->current_time, 10, 'time advanced to delay point');
+    cmp_ok($elapsed, '>=', 10, 'at least 10ms elapsed');
+    cmp_ok($elapsed, '<', 30, 'less than 30ms elapsed');
 };
 
 # Test delay() with zero delay
@@ -125,13 +141,16 @@ subtest 'delay - zero delay' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
+    my $start = $executor->current_time;
     Promise->delay("Immediate", 0, $executor)
         ->then(sub ($msg) { $result = $msg });
 
     $executor->run;
 
-    is($result, "Immediate", 'zero delay works (enforced minimum of 1)');
-    is($executor->current_time, 1, 'minimum delay of 1 tick enforced');
+    my $elapsed = $executor->current_time - $start;
+    is($result, "Immediate", 'zero delay works (enforced minimum of 1ms)');
+    # With real-time execution, callback may fire very quickly
+    cmp_ok($elapsed, '<', 10, 'completes quickly (< 10ms)');
 };
 
 # Test chaining delayed promises
@@ -139,6 +158,7 @@ subtest 'delay - chaining multiple delays' => sub {
     my $executor = ScheduledExecutor->new;
     my @results;
 
+    my $start = $executor->current_time;
     Promise->delay("A", 10, $executor)
         ->then(sub ($x) {
             push @results, $x;
@@ -150,8 +170,10 @@ subtest 'delay - chaining multiple delays' => sub {
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is_deeply(\@results, ["A", "B"], 'multiple delays chain correctly');
-    is($executor->current_time, 15, 'total time is sum of delays (10+5)');
+    cmp_ok($elapsed, '>=', 15, 'at least 15ms elapsed (10+5)');
+    cmp_ok($elapsed, '<', 40, 'less than 40ms elapsed');
 };
 
 # Test timeout() with delayed promise
@@ -159,6 +181,7 @@ subtest 'timeout - delayed promise completes before timeout' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
+    my $start = $executor->current_time;
     Promise->delay("Success", 20, $executor)
         ->timeout(50, $executor)
         ->then(
@@ -168,8 +191,10 @@ subtest 'timeout - delayed promise completes before timeout' => sub {
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is($result, "Got: Success", 'delayed promise completes before timeout');
-    is($executor->current_time, 20, 'time advanced to delay point');
+    cmp_ok($elapsed, '>=', 20, 'at least 20ms elapsed');
+    cmp_ok($elapsed, '<', 50, 'less than 50ms elapsed (no timeout)');
 };
 
 # Test timeout() with delayed promise that times out
@@ -177,6 +202,7 @@ subtest 'timeout - delayed promise times out' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
+    my $start = $executor->current_time;
     Promise->delay("Too slow", 100, $executor)
         ->timeout(30, $executor)
         ->then(
@@ -186,8 +212,9 @@ subtest 'timeout - delayed promise times out' => sub {
 
     $executor->run;
 
-    like($result, qr/Error: Timeout after 30 ticks/, 'delayed promise times out');
-    is($executor->current_time, 100, 'time advanced through all scheduled timers');
+    my $elapsed = $executor->current_time - $start;
+    like($result, qr/Error: Timeout after 30ms/, 'delayed promise times out');
+    cmp_ok($elapsed, '>=', 30, 'at least 30ms elapsed (timed out)');
 };
 
 # Test complex promise chain with multiple timeouts
@@ -206,6 +233,7 @@ subtest 'timeout - complex promise chain' => sub {
             ->timeout(25, $executor);
     };
 
+    my $start = $executor->current_time;
     $fetch_user->(123)
         ->then($fetch_posts)
         ->then(
@@ -215,8 +243,10 @@ subtest 'timeout - complex promise chain' => sub {
 
     $executor->run;
 
+    my $elapsed = $executor->current_time - $start;
     is_deeply(\@results, ["User_123", "Post1,Post2"], 'complex chain with timeouts works');
-    is($executor->current_time, 25, 'total time is sum of delays');
+    cmp_ok($elapsed, '>=', 25, 'at least 25ms elapsed (10+15)');
+    cmp_ok($elapsed, '<', 60, 'less than 60ms elapsed');
 };
 
 # Test timeout() with invalid executor

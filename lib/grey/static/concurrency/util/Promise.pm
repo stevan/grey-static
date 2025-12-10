@@ -133,7 +133,7 @@ class Promise {
         }
     }
 
-    method timeout ($delay_ticks, $scheduled_executor) {
+    method timeout ($delay_ms, $scheduled_executor) {
         Error->throw(
             message => "Invalid executor for timeout",
             hint => "Expected a ScheduledExecutor, got: " . (ref($scheduled_executor) || 'scalar')
@@ -147,9 +147,9 @@ class Promise {
             sub {
                 # Only timeout if original promise is still pending
                 return unless $self->is_in_progress;
-                $timeout_promise->reject("Timeout after ${delay_ticks} ticks");
+                $timeout_promise->reject("Timeout after ${delay_ms}ms");
             },
-            $delay_ticks
+            $delay_ms
         );
 
         # Add handlers directly to avoid creating intermediate promise
@@ -174,7 +174,7 @@ class Promise {
         return $timeout_promise;
     }
 
-    sub delay ($class, $value, $delay_ticks, $scheduled_executor) {
+    sub delay ($class, $value, $delay_ms, $scheduled_executor) {
         Error->throw(
             message => "Invalid executor for delay",
             hint => "Expected a ScheduledExecutor, got: " . (ref($scheduled_executor) || 'scalar')
@@ -184,7 +184,7 @@ class Promise {
 
         $scheduled_executor->schedule_delayed(
             sub { $promise->resolve($value) },
-            $delay_ticks
+            $delay_ms
         );
 
         return $promise;
@@ -667,7 +667,7 @@ This allows fine-grained control over when async operations execute.
 
 =over 4
 
-=item C<< timeout($delay_ticks, $scheduled_executor) >>
+=item C<< timeout($delay_ms, $scheduled_executor) >>
 
 Adds a timeout to a promise. Returns a new promise that will be rejected with a
 timeout error if the original promise doesn't settle within the specified delay.
@@ -676,13 +676,13 @@ B<Parameters:>
 
 =over 4
 
-=item C<$delay_ticks>
+=item C<$delay_ms>
 
 Number of ticks to wait before timing out.
 
 =item C<$scheduled_executor>
 
-A C<ScheduledExecutor> instance that provides time-based scheduling.
+A C<SimulatedExecutor> instance that provides time-based scheduling.
 
 =back
 
@@ -704,7 +704,7 @@ The timeout timer is automatically cancelled if the promise settles before the t
 
 B<Example:>
 
-    my $executor = ScheduledExecutor->new;
+    my $executor = SimulatedExecutor->new;
     my $promise = Promise->new(executor => $executor);
 
     $promise->timeout(100, $executor)
@@ -717,7 +717,7 @@ B<Example:>
     $executor->schedule_delayed(sub { $promise->resolve("Done!") }, 50);
     $executor->run;  # Prints "Success: Done!"
 
-=item C<< delay($class, $value, $delay_ticks, $scheduled_executor) >>
+=item C<< delay($class, $value, $delay_ms, $scheduled_executor) >>
 
 Factory method that creates a promise which resolves with the given value after
 a specified delay.
@@ -730,21 +730,21 @@ B<Parameters:>
 
 The value to resolve with after the delay.
 
-=item C<$delay_ticks>
+=item C<$delay_ms>
 
 Number of ticks to wait before resolving.
 
 =item C<$scheduled_executor>
 
-A C<ScheduledExecutor> instance that provides time-based scheduling.
+A C<SimulatedExecutor> instance that provides time-based scheduling.
 
 =back
 
-B<Returns:> A new C<Promise> that will resolve with C<$value> after C<$delay_ticks>.
+B<Returns:> A new C<Promise> that will resolve with C<$value> after C<$delay_ms>.
 
 B<Example:>
 
-    my $executor = ScheduledExecutor->new;
+    my $executor = SimulatedExecutor->new;
 
     Promise->delay("Hello", 10, $executor)
         ->then(sub ($msg) { say $msg });

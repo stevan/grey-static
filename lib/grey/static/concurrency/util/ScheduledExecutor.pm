@@ -2,47 +2,78 @@
 use v5.42;
 use experimental qw[ class ];
 
-# Simple queue-based scheduled executor
-# Uses a sorted list of timers for efficient scheduling
+use Time::HiRes ();
+
+# Real-time executor with millisecond-precision scheduling
+# Based on Yakt::System::Timers
 class ScheduledExecutor :isa(Executor) {
-    field $current_time = 0;
+    use constant TIMER_PRECISION_DECIMAL => 0.001;
+    use constant TIMER_PRECISION_INT     => 1000;
+
+    field $time;
     field $next_timer_id = 1;
-    field @timers;  # Array of [expiry, id, callback, cancelled]
+    field @timers;  # Array of [end_time, id, callback, cancelled]
 
-    # Schedule callback with delay
-    method schedule_delayed($callback, $delay_ticks) {
+    ADJUST {
+        # Initialize time to current monotonic clock
+        $self->now;
+    }
+
+    # Get current monotonic time
+    method now {
+        state $MONOTONIC = Time::HiRes::CLOCK_MONOTONIC();
+        $time = Time::HiRes::clock_gettime($MONOTONIC);
+        return $time;
+    }
+
+    # Sleep for duration in seconds
+    method wait ($duration) {
+        Time::HiRes::sleep($duration) if $duration > 0;
+    }
+
+    # Check if there are active timers
+    method has_active_timers {
+        return !! @timers;
+    }
+
+    # Calculate end time for a timer given delay in milliseconds
+    method _calculate_end_time ($delay_ms) {
+        my $now      = $self->now;
+        my $end_time = $now + ($delay_ms / 1000.0);  # Convert ms to seconds
+        # Round to millisecond precision
+        $end_time = int($end_time * TIMER_PRECISION_INT) * TIMER_PRECISION_DECIMAL;
+        return $end_time;
+    }
+
+    # Schedule callback with delay in milliseconds
+    method schedule_delayed ($callback, $delay_ms) {
         my $timer_id = $next_timer_id++;
-        my $expiry = $current_time + ($delay_ticks < 1 ? 1 : $delay_ticks);
+        my $end_time = $self->_calculate_end_time($delay_ms < 1 ? 1 : $delay_ms);
 
-        # Insert timer in sorted order
-        my $timer = [$expiry, $timer_id, $callback, 0];  # [expiry, id, callback, cancelled]
+        my $timer = [$end_time, $timer_id, $callback, 0];  # [end_time, id, callback, cancelled]
 
         if (@timers == 0) {
             # Fast path: first timer
             push @timers, $timer;
         }
-        elsif ($timers[-1][0] <= $expiry) {
+        elsif ($timers[-1][0] == $end_time) {
+            # Same time as last timer - append
+            push @timers, $timer;
+        }
+        elsif ($timers[-1][0] < $end_time) {
             # Fast path: append to end (common case)
             push @timers, $timer;
         }
-        else {
-            # Need to insert in sorted position
-            my $insert_pos = 0;
-            for my $i (0..$#timers) {
-                if ($timers[$i][0] > $expiry) {
-                    $insert_pos = $i;
-                    last;
-                }
-                $insert_pos = $i + 1;
-            }
-            splice @timers, $insert_pos, 0, $timer;
+        elsif ($timers[-1][0] > $end_time) {
+            # Need to sort - insert in correct position
+            @timers = sort { $a->[0] <=> $b->[0] } @timers, $timer;
         }
 
         return $timer_id;
     }
 
     # Cancel scheduled callback
-    method cancel_scheduled($timer_id) {
+    method cancel_scheduled ($timer_id) {
         # Mark as cancelled (lazy deletion)
         for my $timer (@timers) {
             if ($timer->[1] == $timer_id) {
@@ -53,76 +84,120 @@ class ScheduledExecutor :isa(Executor) {
         return 0;
     }
 
-    # Get current time
-    method current_time { $current_time }
-
-    # Find next timer expiry (skip cancelled ones)
-    method _find_next_expiry {
-        # Clean up cancelled timers from front
-        while (@timers && $timers[0][3]) {
-            shift @timers;
+    # Get next timer, cleaning up cancelled ones
+    method _get_next_timer {
+        while (my $next_timer = $timers[0]) {
+            # If we have timers
+            if (@{$next_timer}) {
+                # Check if all are cancelled
+                my @active = grep { !$_->[3] } @timers;
+                if (@active == 0) {
+                    # All cancelled, clear and continue
+                    shift @timers;
+                    next;
+                }
+                else {
+                    last;
+                }
+            }
+            else {
+                shift @timers;
+            }
         }
 
-        return @timers ? $timers[0][0] : undef;
+        return $timers[0];
     }
 
-    # Get all timers that should fire now
-    method _get_pending_timers {
-        my @pending;
+    # Calculate how long to wait for next timer
+    method should_wait {
+        my $wait = 0;
 
-        while (@timers && $timers[0][0] <= $current_time) {
-            my $timer = shift @timers;
-            push @pending, $timer unless $timer->[3];  # Skip cancelled
+        if (my $next_timer = $self->_get_next_timer) {
+            $wait = $next_timer->[0] - $time;
+        }
+
+        # Do not wait for negative values
+        if ($wait < TIMER_PRECISION_DECIMAL) {
+            $wait = 0;
+        }
+
+        return $wait;
+    }
+
+    # Get all pending timers (ready to fire)
+    method pending_timers {
+        my $now = $self->now;
+
+        my @pending;
+        while (@timers && $timers[0][0] <= $now) {
+            push @pending, shift @timers;
         }
 
         return @pending;
     }
 
-    # Override run() to advance time
+    # Execute a timer's callback
+    method _execute_timer ($timer) {
+        return if $timer->[3];  # Skip cancelled
+
+        my $callback = $timer->[2];
+        eval {
+            $callback->();
+        };
+        if ($@) {
+            chomp(my $error = $@);
+            warn "Timer callback failed: $error\n";
+        }
+    }
+
+    # Process pending timers
+    method tick {
+        return unless @timers;
+
+        my @timers_to_run = $self->pending_timers;
+        return unless @timers_to_run;
+
+        foreach my $timer (@timers_to_run) {
+            $self->_execute_timer($timer);
+        }
+    }
+
+    # Override run() to use real time with waiting
     method run {
         while (!$self->is_done || @timers) {
             if ($ENV{DEBUG_EXECUTOR}) {
-                say "[executor] Loop: time=$current_time, is_done=", $self->is_done, ", timer_count=", scalar(@timers);
+                say "[executor] Loop: is_done=", $self->is_done, ", timer_count=", scalar(@timers);
             }
 
-            # Process any queued callbacks first before advancing time
+            # Process any queued callbacks first before waiting
             if (!$self->is_done) {
                 say "[executor] Processing tick" if $ENV{DEBUG_EXECUTOR};
-                $self->tick;
+                $self->SUPER::tick;  # Call Executor's tick
                 next;
             }
 
-            # No queued callbacks - check if we should advance time
-            my $next_expiry = $self->_find_next_expiry;
-            say "[executor] Next expiry: ", (defined $next_expiry ? $next_expiry : "undef") if $ENV{DEBUG_EXECUTOR};
+            # No queued callbacks - check if we should wait for timers
+            my $wait_duration = $self->should_wait;
 
-            if (defined $next_expiry && $next_expiry > $current_time) {
-                # Advance to next timer
-                say "[executor] Advancing from $current_time to $next_expiry" if $ENV{DEBUG_EXECUTOR};
-                $current_time = $next_expiry;
-
-                # Fire all timers at this time
-                my @pending = $self->_get_pending_timers;
-                for my $timer (@pending) {
-                    $timer->[2]->();  # Execute callback (index 2)
-                }
-                next;
+            if ($wait_duration > 0) {
+                say "[executor] Waiting ${wait_duration}s for next timer" if $ENV{DEBUG_EXECUTOR};
+                $self->wait($wait_duration);
             }
+
+            # Process pending timers
+            $self->tick;
 
             # No queued callbacks and no timers - we're done
             if ($self->is_done && !@timers) {
                 say "[executor] Done - no callbacks and no timers" if $ENV{DEBUG_EXECUTOR};
                 last;
             }
-
-            # Safety: shouldn't reach here
-            say "[executor] SAFETY EXIT" if $ENV{DEBUG_EXECUTOR};
-            last;
         }
     }
 
     # For debugging
     method timer_count { scalar @timers }
+    method current_time { $time * 1000 }  # Return milliseconds
 }
 
 1;
@@ -135,7 +210,7 @@ __END__
 
 =head1 NAME
 
-ScheduledExecutor - Time-based callback scheduler with Executor integration
+ScheduledExecutor - Real-time callback scheduler with millisecond precision
 
 =head1 SYNOPSIS
 
@@ -143,32 +218,32 @@ ScheduledExecutor - Time-based callback scheduler with Executor integration
 
     my $executor = ScheduledExecutor->new;
 
-    # Schedule callbacks with delays
-    $executor->schedule_delayed(sub { say "After 10 ticks" }, 10);
-    $executor->schedule_delayed(sub { say "After 5 ticks" }, 5);
-    $executor->schedule_delayed(sub { say "After 15 ticks" }, 15);
+    # Schedule callbacks with delays in milliseconds
+    $executor->schedule_delayed(sub { say "After 100ms" }, 100);
+    $executor->schedule_delayed(sub { say "After 50ms" }, 50);
+    $executor->schedule_delayed(sub { say "After 150ms" }, 150);
 
-    # Run the executor - time advances automatically
+    # Run the executor - uses real time with actual waiting
     $executor->run;
-    # Output (in order):
-    # After 5 ticks
-    # After 10 ticks
-    # After 15 ticks
+    # Output (in order, with real delays):
+    # After 50ms
+    # After 100ms
+    # After 150ms
 
     # Cancel scheduled callbacks
-    my $timer_id = $executor->schedule_delayed(sub { say "Won't run" }, 100);
+    my $timer_id = $executor->schedule_delayed(sub { say "Won't run" }, 1000);
     $executor->cancel_scheduled($timer_id);
 
     # Mix delayed and immediate callbacks
     $executor->next_tick(sub { say "Immediate" });
-    $executor->schedule_delayed(sub { say "Delayed" }, 10);
+    $executor->schedule_delayed(sub { say "Delayed" }, 100);
     $executor->run;
 
 =head1 DESCRIPTION
 
-C<ScheduledExecutor> extends L<Executor> to provide time-based callback scheduling.
-It manages a simulated timeline where callbacks can be scheduled to execute after
-a specified delay (measured in "ticks").
+C<ScheduledExecutor> extends L<Executor> to provide real-time callback scheduling
+with millisecond precision. It uses C<Time::HiRes::CLOCK_MONOTONIC> for steady,
+non-adjustable time measurements and actually sleeps/waits when running.
 
 Key features:
 
@@ -176,11 +251,19 @@ Key features:
 
 =item *
 
-B<Automatic time advancement> - Time moves forward to execute scheduled callbacks
+B<Real-time scheduling> - Uses actual wall-clock time, not simulated ticks
 
 =item *
 
-B<Efficient queue-based scheduling> - Timers stored in sorted order for O(1) next-timer lookup
+B<Millisecond precision> - Delays specified in milliseconds
+
+=item *
+
+B<Monotonic clock> - Uses CLOCK_MONOTONIC for steady time (unaffected by system time changes)
+
+=item *
+
+B<Efficient waiting> - Sleeps between timer events to avoid busy-waiting
 
 =item *
 
@@ -190,69 +273,51 @@ B<Lazy cancellation> - Cancelled timers marked but not removed immediately
 
 B<Executor integration> - Inherits all Executor functionality (next_tick, chaining, etc.)
 
-=item *
-
-B<Immediate callbacks first> - Queued callbacks via C<next_tick()> execute before time advances
-
 =back
-
-=head1 ARCHITECTURE
-
-ScheduledExecutor uses a simple queue-based timer system:
-
-=over 4
-
-=item *
-
-Timers stored in an array sorted by expiry time
-
-=item *
-
-Insertion is O(n) worst case, but O(1) for common case (appending to end)
-
-=item *
-
-Next-timer lookup is O(1) (always at index 0)
-
-=item *
-
-Cancelled timers use lazy deletion (marked but cleaned up during traversal)
-
-=back
-
-This design is simple, efficient for typical workloads (<100 concurrent timers),
-and avoids the complexity of hierarchical timer wheels or min-heaps.
 
 =head1 TIME MODEL
 
-ScheduledExecutor operates on a B<simulated timeline>:
+ScheduledExecutor operates on B<real-world time>:
 
 =over 4
 
 =item *
 
-Time starts at 0 and only advances when needed to fire timers
+Time comes from C<Time::HiRes::CLOCK_MONOTONIC> (monotonic clock)
 
 =item *
 
-Time is measured in abstract "ticks" (not real-world time)
+Delays are measured in milliseconds (converted to seconds internally)
+
+=item *
+
+The executor sleeps/waits for real time between timer events
+
+=item *
+
+Time precision is rounded to milliseconds (0.001 seconds)
 
 =item *
 
 Multiple timers at the same time execute in scheduling order
 
-=item *
-
-Immediate callbacks (C<next_tick()>) execute at the current time before advancing
-
 =back
 
-Example timeline:
+=head1 COMPARISON WITH SIMULATEDEXECUTOR
 
-    Time 0:  [next_tick callbacks execute]
-    Time 5:  [timer A fires]
-    Time 10: [timer B fires, timer C fires]
-    Time 15: [timer D fires]
+=over 4
+
+=item B<ScheduledExecutor>
+
+Real-time execution with actual sleeping/waiting. Use for production code,
+real-world timing, and wall-clock operations.
+
+=item B<SimulatedExecutor>
+
+Simulated time that jumps instantly to next event. Use for testing, deterministic
+behavior, and fast-running tests.
+
+=back
 
 =head1 CONSTRUCTOR
 
@@ -261,7 +326,7 @@ Example timeline:
     my $executor = ScheduledExecutor->new;
     my $executor = ScheduledExecutor->new(next => $other_executor);
 
-Creates a new ScheduledExecutor starting at time 0.
+Creates a new ScheduledExecutor.
 
 B<Parameters:>
 
@@ -269,9 +334,7 @@ B<Parameters:>
 
 =item C<next> (optional)
 
-Another Executor to chain to. When this executor completes a tick with no remaining
-callbacks, execution continues to the next executor. See L<Executor> for details on
-executor chaining.
+Another Executor to chain to. See L<Executor> for details on executor chaining.
 
 =back
 
@@ -281,9 +344,9 @@ executor chaining.
 
 =over 4
 
-=item C<< schedule_delayed($callback, $delay_ticks) >>
+=item C<< schedule_delayed($callback, $delay_ms) >>
 
-Schedules a callback to execute after the specified delay.
+Schedules a callback to execute after the specified delay in milliseconds.
 
 B<Parameters:>
 
@@ -293,10 +356,9 @@ B<Parameters:>
 
 Code reference to execute when the timer fires.
 
-=item C<$delay_ticks>
+=item C<$delay_ms>
 
-Number of ticks to wait before executing. Must be >= 0.
-If 0, the callback fires at the current time (but after any pending C<next_tick> callbacks).
+Number of milliseconds to wait before executing. Must be >= 0.
 If < 1, treated as 1.
 
 =back
@@ -306,8 +368,8 @@ B<Returns:> A unique timer ID that can be used with C<cancel_scheduled()>.
 B<Example:>
 
     my $id = $executor->schedule_delayed(sub {
-        say "Executed at time: " . $executor->current_time;
-    }, 50);
+        say "Executed after 500ms";
+    }, 500);
 
 =item C<< cancel_scheduled($timer_id) >>
 
@@ -323,18 +385,10 @@ The ID returned by C<schedule_delayed()>.
 
 =back
 
-B<Returns:> 1 if the timer was found and cancelled, 0 if not found (already fired or
-already cancelled).
-
-B<Example:>
-
-    my $id = $executor->schedule_delayed(sub { say "Won't execute" }, 100);
-    my $cancelled = $executor->cancel_scheduled($id);
-    say "Cancelled: $cancelled";  # Prints "Cancelled: 1"
+B<Returns:> 1 if the timer was found and cancelled, 0 if not found.
 
 B<Note:> Cancelled timers are marked but not immediately removed from the internal
-queue. They are cleaned up lazily during normal timer processing. This makes
-cancellation O(n) but avoids disrupting the sorted timer queue.
+queue. They are cleaned up lazily during normal timer processing.
 
 =back
 
@@ -342,20 +396,29 @@ cancellation O(n) but avoids disrupting the sorted timer queue.
 
 =over 4
 
+=item C<now()>
+
+Returns the current monotonic time in seconds (updates internal time).
+
 =item C<current_time()>
 
-Returns the current simulated time in ticks.
+Returns the cached current time in seconds (does not update).
 
-B<Example:>
+=item C<wait($duration)>
 
-    say "Current time: " . $executor->current_time;
-    $executor->run;
-    say "Final time: " . $executor->current_time;
+Sleeps for the specified duration in seconds.
+
+=item C<should_wait()>
+
+Returns how long (in seconds) to wait before the next timer fires.
+
+=item C<has_active_timers()>
+
+Returns true if there are any scheduled timers.
 
 =item C<timer_count()>
 
 Returns the number of scheduled timers (including cancelled but not yet cleaned up).
-Primarily useful for debugging and testing.
 
 =back
 
@@ -367,32 +430,29 @@ All methods from L<Executor> are available:
 
 =item C<next_tick($callback)>
 
-Queue an immediate callback (inherited from Executor). These execute at the current
-time before time advances.
+Queue an immediate callback (inherited from Executor). These execute before
+any waiting occurs.
 
 =item C<run()>
 
-Execute callbacks and advance time as needed. Overrides Executor's C<run()> to
-implement time advancement logic.
+Execute callbacks and wait for timers as needed. Overrides Executor's C<run()> to
+implement real-time waiting logic.
 
 The run loop:
 
-1. Execute all queued C<next_tick> callbacks at current time
-
-2. If no queued callbacks, advance to next timer's expiry time
-
-3. Fire all timers at the new time
-
-4. Repeat until no callbacks and no timers remain
+1. Execute all queued C<next_tick> callbacks
+2. If no queued callbacks, calculate wait time for next timer
+3. Sleep for the calculated duration
+4. Fire all timers that are ready
+5. Repeat until no callbacks and no timers remain
 
 =item C<tick()>
 
-Execute one batch of queued callbacks without advancing time (inherited from Executor).
+Execute one batch of pending timers without processing queued callbacks.
 
 =item C<is_done()>
 
-Returns true if no queued callbacks remain (inherited from Executor). Does not
-consider scheduled timers.
+Returns true if no queued callbacks remain (inherited from Executor).
 
 =back
 
@@ -403,8 +463,8 @@ consider scheduled timers.
     my $executor = ScheduledExecutor->new;
 
     $executor->schedule_delayed(sub {
-        say "This runs after 10 ticks";
-    }, 10);
+        say "This runs after 100ms";
+    }, 100);
 
     $executor->run;
 
@@ -412,116 +472,23 @@ consider scheduled timers.
 
     my $executor = ScheduledExecutor->new;
 
-    $executor->schedule_delayed(sub { say "First" }, 5);
-    $executor->schedule_delayed(sub { say "Second" }, 10);
-    $executor->schedule_delayed(sub { say "Third" }, 15);
+    $executor->schedule_delayed(sub { say "First" }, 50);
+    $executor->schedule_delayed(sub { say "Second" }, 100);
+    $executor->schedule_delayed(sub { say "Third" }, 150);
 
     $executor->run;
-    # Prints in order: First, Second, Third
+    # Prints in order with real delays: First, Second, Third
 
 =head2 Cancellation
 
     my $executor = ScheduledExecutor->new;
 
-    my $id1 = $executor->schedule_delayed(sub { say "Keeps" }, 10);
-    my $id2 = $executor->schedule_delayed(sub { say "Cancelled" }, 20);
+    my $id1 = $executor->schedule_delayed(sub { say "Keeps" }, 100);
+    my $id2 = $executor->schedule_delayed(sub { say "Cancelled" }, 200);
 
     $executor->cancel_scheduled($id2);
     $executor->run;
     # Only prints: Keeps
-
-=head2 Callbacks Scheduling More Callbacks
-
-    my $executor = ScheduledExecutor->new;
-
-    $executor->schedule_delayed(sub {
-        say "First callback at time " . $executor->current_time;
-
-        # Schedule another callback relative to current time
-        $executor->schedule_delayed(sub {
-            say "Nested callback at time " . $executor->current_time;
-        }, 5);
-    }, 10);
-
-    $executor->run;
-    # Prints:
-    # First callback at time 10
-    # Nested callback at time 15
-
-=head2 Mixing Immediate and Delayed
-
-    my $executor = ScheduledExecutor->new;
-
-    $executor->next_tick(sub { say "Immediate 1" });
-    $executor->schedule_delayed(sub { say "Delayed" }, 10);
-    $executor->next_tick(sub { say "Immediate 2" });
-
-    $executor->run;
-    # Prints:
-    # Immediate 1
-    # Immediate 2
-    # Delayed
-
-=head1 INTEGRATION WITH OTHER FEATURES
-
-=head2 With Promises
-
-ScheduledExecutor enables time-based promise operations:
-
-    my $executor = ScheduledExecutor->new;
-    my $promise = Promise->new(executor => $executor);
-
-    # Add timeout to promise
-    $promise->timeout(50, $executor)
-        ->then(
-            sub ($value) { say "Success: $value" },
-            sub ($error) { say "Error: $error" }
-        );
-
-    # Resolve before timeout
-    $executor->schedule_delayed(sub { $promise->resolve("Done!") }, 30);
-    $executor->run;  # Prints "Success: Done!"
-
-=head2 With Streams
-
-ScheduledExecutor enables time-based stream operations:
-
-    my $executor = ScheduledExecutor->new;
-
-    # Create stream with time-based operations
-    Stream->of(1, 2, 3, 4, 5)
-        ->throttle(10, $executor)  # Min 10 ticks between elements
-        ->for_each(sub ($x) { say $x });
-
-=head1 PERFORMANCE CHARACTERISTICS
-
-=over 4
-
-=item *
-
-B<schedule_delayed()>: O(n) insertion (O(1) for common case of increasing delays)
-
-=item *
-
-B<cancel_scheduled()>: O(n) marking (lazy cleanup)
-
-=item *
-
-B<Finding next timer>: O(1) (front of sorted queue)
-
-=item *
-
-B<Time advancement>: O(1) per timer that fires
-
-=item *
-
-B<Memory>: O(n) where n = number of active timers
-
-=back
-
-This implementation is optimized for typical use cases with moderate numbers of
-concurrent timers (<100). For workloads with many timers, a min-heap could provide
-better insertion performance, but adds complexity.
 
 =head1 DEBUGGING
 
@@ -529,57 +496,9 @@ Set the C<DEBUG_EXECUTOR> environment variable to see detailed execution traces:
 
     DEBUG_EXECUTOR=1 perl script.pl
 
-Output includes:
+=head1 DEPENDENCIES
 
-=over 4
-
-=item *
-
-Loop iterations with current time
-
-=item *
-
-Callback queue status
-
-=item *
-
-Timer count
-
-=item *
-
-Time advancement events
-
-=back
-
-Example output:
-
-    [executor] Loop: time=0, is_done=0, timer_count=2
-    [executor] Processing tick
-    [executor] Loop: time=0, is_done=1, timer_count=2
-    [executor] Next expiry: 10
-    [executor] Advancing from 0 to 10
-
-=head1 LIMITATIONS
-
-=over 4
-
-=item *
-
-Time is simulated, not real-world. ScheduledExecutor is designed for testing
-and coordinated async operations, not wall-clock timing.
-
-=item *
-
-Timer insertion is O(n) worst case. For large numbers of concurrent timers
-(>1000), consider a min-heap based implementation.
-
-=item *
-
-Cancelled timers remain in memory until cleaned up during timer processing.
-This is typically not an issue but can accumulate if many timers are cancelled
-without being fired.
-
-=back
+Requires L<Time::HiRes> for high-resolution timing.
 
 =head1 SEE ALSO
 
@@ -591,11 +510,15 @@ L<Executor> - Base class providing callback queuing and executor chaining
 
 =item *
 
+L<SimulatedExecutor> - Simulated-time variant for testing
+
+=item *
+
 L<Promise> - Async promise implementation with timeout/delay support
 
 =item *
 
-L<Stream> - Stream API with time-based operations (throttle, debounce, timeout)
+L<Stream> - Stream API with time-based operations
 
 =item *
 

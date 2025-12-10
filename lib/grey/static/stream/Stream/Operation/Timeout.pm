@@ -8,8 +8,13 @@ class Stream::Operation::Timeout :isa(Stream::Operation::Node) {
     field $timeout_delay :param;
     field $executor :param;  # ScheduledExecutor
 
-    field $last_element_time = 0;
+    field $last_element_time;
     field $next;
+
+    ADJUST {
+        # Initialize to current time so first element doesn't trigger timeout
+        $last_element_time = $executor->current_time;
+    }
 
     method next { $next }
 
@@ -20,7 +25,7 @@ class Stream::Operation::Timeout :isa(Stream::Operation::Node) {
         if ($elapsed >= $timeout_delay) {
             Error->throw(
                 message => "Stream timeout",
-                hint => "No element received within $timeout_delay ticks"
+                hint => "No element received within $timeout_delay ms"
             );
         }
 

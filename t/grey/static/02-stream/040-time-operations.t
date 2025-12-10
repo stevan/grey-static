@@ -21,13 +21,15 @@ sub advance_time($executor, $delta) {
 subtest 'throttle - first element passes immediately' => sub {
     my $executor = ScheduledExecutor->new;
 
+    my $start = $executor->current_time;
     my @result = Stream->of(1, 2, 3, 4, 5)
         ->throttle(10, $executor)
         ->take(1)
         ->collect(Stream::Collectors->ToList);
 
-    is_deeply(\@result, [1], 'first element passes at t=0');
-    is($executor->current_time, 0, 'no time has advanced');
+    my $elapsed = $executor->current_time - $start;
+    is_deeply(\@result, [1], 'first element passes immediately');
+    cmp_ok($elapsed, '<', 5, 'minimal time elapsed');
 };
 
 subtest 'throttle - rapid pulls are blocked' => sub {
@@ -44,10 +46,10 @@ subtest 'throttle - rapid pulls are blocked' => sub {
     # Try to pull immediately - should be blocked
     ok(!$stream->source->has_next, 'second element blocked at t=0');
 
-    # Advance time by 5 ticks
+    # Advance time by 5ms
     advance_time($executor, 5);
 
-    # Still blocked (need >= 10 ticks)
+    # Still blocked (need >= 10ms)
     ok(!$stream->source->has_next, 'second element still blocked at t=5');
 
     # Advance to t=10
@@ -68,15 +70,15 @@ subtest 'throttle - multiple elements with time advancement' => sub {
 
     my @result;
 
-    # Manually pull with time advancement
+    # Manually pull with time advancement - use slightly longer delay for real-time reliability
     for (1 .. 3) {
         if ($stream->source->has_next) {
             push @result, $stream->source->next;
         }
-        advance_time($executor, 10);
+        advance_time($executor, 12);
     }
 
-    is_deeply(\@result, [1, 2, 3], 'throttle emits elements at 10-tick intervals');
+    is_deeply(\@result, [1, 2, 3], 'throttle emits elements at 10ms intervals');
 };
 
 subtest 'throttle - with min_delay of 0' => sub {
@@ -186,8 +188,8 @@ subtest 'debounce - multiple quiet periods' => sub {
     # Pull to buffer elements (debounce is pull-based)
     $stream->source->has_next;
 
-    # Wait for quiet period
-    advance_time($executor, 10);
+    # Wait for quiet period - use longer delay for reliability with real time
+    advance_time($executor, 15);
 
     my @result;
     push @result, $stream->source->next if $stream->source->has_next;
@@ -224,7 +226,7 @@ subtest 'timeout - times out with no elements' => sub {
 
     ok($@, 'timeout throws error');
     like("$@", qr/Stream timeout/, 'error message mentions timeout');
-    like("$@", qr/10 ticks/, 'error message includes timeout value');
+    like("$@", qr/10\s*ms/, 'error message includes timeout value');
 };
 
 subtest 'timeout - timer resets with each element' => sub {
@@ -366,17 +368,17 @@ subtest 'integration - chaining time operations' => sub {
     my $executor = ScheduledExecutor->new;
 
     my $stream = Stream->of(1, 2, 3, 4, 5)
-        ->throttle(5, $executor)
+        ->throttle(10, $executor)
         ->timeout(50, $executor);
 
     my @result;
 
-    # Pull with time advancement
+    # Pull with time advancement - use longer delays for real-time reliability
     for (1 .. 3) {
         if ($stream->source->has_next) {
             push @result, $stream->source->next;
         }
-        advance_time($executor, 5);
+        advance_time($executor, 12);
     }
 
     is_deeply(\@result, [1, 2, 3], 'can chain throttle and timeout');
