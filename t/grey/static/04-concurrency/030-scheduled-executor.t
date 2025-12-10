@@ -13,7 +13,7 @@ subtest 'ScheduledExecutor construction' => sub {
     isa_ok($executor, 'ScheduledExecutor');
     isa_ok($executor, 'Executor', 'ScheduledExecutor extends Executor');
     is($executor->current_time, 0, 'starts at time 0');
-    isa_ok($executor->wheel, 'Timer::Wheel', 'has timer wheel');
+    is($executor->timer_count, 0, 'starts with no timers');
 };
 
 # Test basic delayed execution
@@ -170,20 +170,18 @@ subtest 'schedule_delayed returns unique IDs' => sub {
     isnt($id1, $id3, 'ID 1 and 3 are different');
 };
 
-# Test timer wheel integration
-subtest 'timer wheel accessible for debugging' => sub {
+# Test timer tracking
+subtest 'timer tracking' => sub {
     my $executor = ScheduledExecutor->new;
 
     $executor->schedule_delayed(sub { }, 10);
     $executor->schedule_delayed(sub { }, 20);
 
-    my $wheel = $executor->wheel;
-    isa_ok($wheel, 'Timer::Wheel');
-    is($wheel->timer_count, 2, 'wheel tracks scheduled timers');
+    is($executor->timer_count, 2, 'executor tracks scheduled timers');
 
     $executor->run;
 
-    is($wheel->timer_count, 0, 'wheel empty after all timers fire');
+    is($executor->timer_count, 0, 'executor empty after all timers fire');
 };
 
 done_testing;

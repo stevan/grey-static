@@ -5,7 +5,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use lib "$FindBin::Bin/../../../lib";
 
-use grey::static qw[ functional concurrency datatypes::util ];
+use grey::static qw[ functional concurrency::reactive datatypes::util ];
 use EventGenerator;
 use EventProcessor;
 

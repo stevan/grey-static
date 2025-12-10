@@ -141,38 +141,29 @@ class Promise {
             $delay_ticks
         );
 
-        # Chain original promise to timeout promise
-        # Use then() to observe the original promise's settlement
-        $self->then(
-            sub ($value) {
-                # Original promise resolved - cancel timeout and resolve timeout promise
-                # Cancel happens first, before any callbacks run
-                $scheduled_executor->cancel_scheduled($timer_id);
-                return unless $timeout_promise->is_in_progress;
-                $timeout_promise->resolve($value);
-            },
-            sub ($error) {
-                # Original promise rejected - cancel timeout and reject timeout promise
-                $scheduled_executor->cancel_scheduled($timer_id);
-                return unless $timeout_promise->is_in_progress;
-                $timeout_promise->reject($error);
-            }
-        );
+        # Add handlers directly to avoid creating intermediate promise
+        # This is critical for proper promise chaining
+        push @resolved => sub ($value) {
+            # Original promise resolved - cancel timeout and resolve timeout promise
+            # Cancel happens first, before any callbacks run
+            $scheduled_executor->cancel_scheduled($timer_id);
+            return unless $timeout_promise->is_in_progress;
+            $timeout_promise->resolve($value);
+        };
+        push @rejected => sub ($error) {
+            # Original promise rejected - cancel timeout and reject timeout promise
+            $scheduled_executor->cancel_scheduled($timer_id);
+            return unless $timeout_promise->is_in_progress;
+            $timeout_promise->reject($error);
+        };
+
+        # If already settled, notify immediately
+        $self->_notify unless $self->is_in_progress;
 
         return $timeout_promise;
     }
 
-}
-
-1;
-
-# Class method for creating delayed promise
-# Must be outside class block as a regular sub to support class method syntax
-BEGIN {
-    no strict 'refs';
-    *{'Promise::delay'} = sub {
-        my ($class, $value, $delay_ticks, $scheduled_executor) = @_;
-
+    sub delay ($class, $value, $delay_ticks, $scheduled_executor) {
         Error->throw(
             message => "Invalid executor for delay",
             hint => "Expected a ScheduledExecutor, got: " . (ref($scheduled_executor) || 'scalar')
@@ -186,8 +177,11 @@ BEGIN {
         );
 
         return $promise;
-    };
+    }
+
 }
+
+1;
 
 __END__
 

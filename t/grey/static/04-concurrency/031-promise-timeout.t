@@ -173,11 +173,7 @@ subtest 'timeout - delayed promise completes before timeout' => sub {
 };
 
 # Test timeout() with delayed promise that times out
-# SKIP: Known issue with timer wheel bucket calculation for deeply nested timers
-# TODO: Fix Timer::Wheel bucket calculation to handle 3+ levels of nesting
-SKIP: {
-    skip "Timer wheel bucket calculation needs fix for deep nesting", 2;
-
+subtest 'timeout - delayed promise times out' => sub {
     my $executor = ScheduledExecutor->new;
     my $result;
 
@@ -192,13 +188,10 @@ SKIP: {
 
     like($result, qr/Error: Timeout after 30 ticks/, 'delayed promise times out');
     is($executor->current_time, 100, 'time advanced through all scheduled timers');
-}
+};
 
 # Test complex promise chain with multiple timeouts
-# SKIP: Known issue with timer wheel bucket calculation for deeply nested timers
-SKIP: {
-    skip "Timer wheel bucket calculation needs fix for deep nesting", 2;
-
+subtest 'timeout - complex promise chain' => sub {
     my $executor = ScheduledExecutor->new;
     my @results;
 
@@ -224,7 +217,7 @@ SKIP: {
 
     is_deeply(\@results, ["User_123", "Post1,Post2"], 'complex chain with timeouts works');
     is($executor->current_time, 25, 'total time is sum of delays');
-}
+};
 
 # Test timeout() with invalid executor
 subtest 'timeout - invalid executor type' => sub {
@@ -262,8 +255,8 @@ subtest 'timeout - timer cancellation' => sub {
 
     $executor->run;
 
-    # Check that timer was cancelled (wheel should be empty)
-    is($executor->wheel->timer_count, 0, 'timeout timer was cancelled after resolution');
+    # Check that timer was cancelled (executor should be empty)
+    is($executor->timer_count, 0, 'timeout timer was cancelled after resolution');
     is($result, "Success: Done!", 'promise resolved successfully');
 };
 

@@ -48,7 +48,20 @@ class Timer::Wheel {
                 } else {
                     DEBUG && say "Got an timer($timer) to move from depth($depth) to depth(".($depth - 1).")";
 
-                    my $t   = $timer->expiry;
+                    # Use delta-based calculation (same as add_timer)
+                    my $current_time = $state->time;
+                    my $delta = $timer->expiry - $current_time;
+
+                    # Special case: if already at depth 0, place directly in bucket
+                    if ($depth == 0) {
+                        my $next_index = $delta;
+                        DEBUG && say "Depth 0: Moving timer($timer) to bucket[$next_index]";
+                        push $wheel[$next_index]->@* => $timer;
+                        $timer_count++;
+                        $timers_by_id{$timer->id}{bucket_index} = $next_index;
+                        next;
+                    }
+
                     my $exp = $depth;
 
                     while ($exp < DEPTH) {
@@ -56,17 +69,24 @@ class Timer::Wheel {
                         my $e2 = ($e1 / 10);
 
                         if (DEBUG) {
-                            say sprintf "t(%d) (e: %d e-1: %d)", $t, $e1, $e2;
-                            say sprintf "((%d %% %d) - (%d %% %d)) / %d", $t, $e1, $t, $e2, $e2;
-                            say sprintf "((%d) - (%d)) / %d", $t % $e1, $t % $e2, $e2;
-                            say sprintf "%d / %d", ($t % $e1) - ($t % $e2), $e2;
-                            say sprintf "%d", (($t % $e1) - ($t % $e2)) / $e2;
+                            say sprintf "delta(%d) (e: %d e-1: %d)", $delta, $e1, $e2;
+                            say sprintf "((%d %% %d) - (%d %% %d)) / %d", $delta, $e1, $delta, $e2, $e2;
+                            say sprintf "((%d) - (%d)) / %d", $delta % $e1, $delta % $e2, $e2;
+                            say sprintf "%d / %d", ($delta % $e1) - ($delta % $e2), $e2;
+                            say sprintf "%d", (($delta % $e1) - ($delta % $e2)) / $e2;
                         }
 
-                        my $x = (($t % $e1) - ($t % $e2)) / $e2;
+                        my $x = (($delta % $e1) - ($delta % $e2)) / $e2;
                         if ($x == 0) {
                             DEBUG && say "x($x) == 0, so dec exp($exp)";
                             $exp--;
+                            # Safety: if exp goes below 0, we can't place the timer
+                            if ($exp < 0) {
+                                Error->throw(
+                                    message => "Timer placement error",
+                                    hint => "Timer delta ($delta) cannot be placed in wheel (exp=$exp)"
+                                );
+                            }
                             next;
                         }
 

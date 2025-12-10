@@ -12,6 +12,7 @@ use Stream::Source::FromSupplier;
 use Stream::Operation;
 use Stream::Operation::Buffered;
 use Stream::Operation::Collect;
+use Stream::Operation::Debounce;
 use Stream::Operation::Every;
 use Stream::Operation::FlatMap;
 use Stream::Operation::Flatten;
@@ -25,6 +26,8 @@ use Stream::Operation::Recurse;
 use Stream::Operation::Reduce;
 use Stream::Operation::Take;
 use Stream::Operation::TakeUntil;
+use Stream::Operation::Throttle;
+use Stream::Operation::Timeout;
 use Stream::Operation::When;
 
 use Stream::Collectors;
@@ -367,6 +370,39 @@ class Stream {
         __CLASS__->new(
             prev   => $self,
             source => Stream::Operation::Buffered->new( source => $source )
+        )
+    }
+
+    method throttle ($min_delay, $executor) {
+        __CLASS__->new(
+            prev   => $self,
+            source => Stream::Operation::Throttle->new(
+                source    => $source,
+                min_delay => $min_delay,
+                executor  => $executor
+            )
+        )
+    }
+
+    method debounce ($quiet_delay, $executor) {
+        __CLASS__->new(
+            prev   => $self,
+            source => Stream::Operation::Debounce->new(
+                source      => $source,
+                quiet_delay => $quiet_delay,
+                executor    => $executor
+            )
+        )
+    }
+
+    method timeout ($timeout_delay, $executor) {
+        __CLASS__->new(
+            prev   => $self,
+            source => Stream::Operation::Timeout->new(
+                source        => $source,
+                timeout_delay => $timeout_delay,
+                executor      => $executor
+            )
         )
     }
 
