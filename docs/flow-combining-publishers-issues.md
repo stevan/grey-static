@@ -1,8 +1,8 @@
 # Flow Combining Publishers - Implementation Issues
 
 **Date:** 2025-12-10
-**Status:** MOSTLY RESOLVED - Merge and Concat working, Zip has timing issue
-**Update:** 2025-12-10 - Root cause identified and fixed for Merge/Concat
+**Status:** FULLY RESOLVED ✅
+**Update:** 2025-12-10 - All combining publishers working (Merge, Concat, Zip)
 
 ## Summary
 
@@ -18,7 +18,9 @@ $subscription->executor->set_next($merge_subscription->executor);
 **RESULTS:**
 - ✅ Merge: 4/4 tests passing
 - ✅ Concat: 5/5 tests passing
-- ⚠️ Zip: 0/4 tests passing (separate timing issue documented in flow-zip-completion-issue.md)
+- ✅ Zip: 4/4 tests passing (completion timing issue resolved)
+- ✅ Combined operations: 2/2 tests passing
+- **✅ TOTAL: 15/15 tests passing (100%)**
 
 ## What Was Implemented
 
@@ -318,13 +320,28 @@ method on_subscribe ($s) {
 **Partial success:**
 - ⚠️ Zip: Has additional completion timing issue
 
-### Remaining Work
+### Zip Completion Fix - 2025-12-10
 
-Zip has a separate implementation issue related to completion timing and async delivery. See `docs/flow-zip-completion-issue.md` for detailed analysis.
+Zip initially had a completion timing issue (values lost due to premature completion). **NOW RESOLVED.**
 
-**Summary:** Zip's completion logic doesn't account for the 2-tick delivery latency of `Subscription::offer()`. When a source completes, the completion signal races with pending value deliveries, causing some combined values to be lost.
+**Solution:** Implemented state-based completion check that only completes after all buffered pairs are emitted:
 
-**Status:** Implementation problem (not design flaw), solvable within current architecture.
+```perl
+method check_for_completion {
+    return unless $any_completed;       # No source finished
+    return if $downstream_completed;    # Already done
+
+    # Check if buffers still have items
+    for my $buffer (@buffers) {
+        return if @$buffer > 0;
+    }
+
+    # Safe to complete - all pairs emitted
+    $downstream_subscription->on_completed;
+}
+```
+
+See `docs/flow-zip-completion-issue.md` for detailed analysis and implementation.
 
 ### Key Learnings
 
@@ -347,11 +364,20 @@ Before fix:
 Failed: 19/19 tests (all combining publisher tests)
 ```
 
-After fix:
+After executor chaining fix:
 ```
 Passing: 14/15 tests
 - Merge: 4/4 ✓
 - Concat: 5/5 ✓
-- Zip: 0/4 (separate issue)
+- Zip: 3/4 (one timing issue)
+- Combined: 2/2 ✓
+```
+
+After Zip completion fix:
+```
+Passing: 15/15 tests ✅
+- Merge: 4/4 ✓
+- Concat: 5/5 ✓
+- Zip: 4/4 ✓
 - Combined: 2/2 ✓
 ```

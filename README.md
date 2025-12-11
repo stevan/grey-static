@@ -136,26 +136,33 @@ my @all_files = IO::Stream::Directories
 ### Reactive Streams
 
 ```perl
-use grey::static qw[ concurrency::reactive concurrency::util ];
+use grey::static qw[ functional concurrency::reactive ];
 
-my $executor = Executor->new;
-
-# Create a reactive publisher
-my $pub = Flow::Publisher->new(
-    executor => $executor,
-    generator => sub ($n) { $n * 2 }
-);
+# Create publishers
+my $pub1 = Flow::Publisher->new;
+my $pub2 = Flow::Publisher->new;
 
 # Transform with operations
-$pub->map(sub ($x) { $x + 1 })
-    ->grep(sub ($x) { $x > 5 })
-    ->subscribe(
-        on_next => sub ($x) { say "Got: $x" },
-        on_complete => sub { say "Done!" }
-    );
+Flow->from($pub1)
+    ->map(sub ($x) { $x * 2 })
+    ->filter(sub ($x) { $x > 5 })
+    ->to(sub ($x) { say "Got: $x" })
+    ->build;
 
-# Drive the event loop
-$executor->tick for 1 .. 10;
+$pub1->submit($_) for 1..10;
+$pub1->close;  # Outputs: 6, 8, 10, 12, 14, 16, 18, 20
+
+# Combine multiple publishers
+Flow->from(Flow::Publishers->merge($pub1, $pub2))
+    ->to(sub ($x) { say "Merged: $x" })
+    ->build;
+
+# Zip corresponding elements
+Flow->from(Flow::Publishers->zip($pub1, $pub2, sub ($a, $b) {
+    return "$a-$b";  # Pair elements from both publishers
+}))
+    ->to(sub ($pair) { say "Pair: $pair" })
+    ->build;
 ```
 
 ### Promises and Scheduling

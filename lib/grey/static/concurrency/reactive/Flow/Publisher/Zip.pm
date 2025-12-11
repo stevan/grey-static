@@ -66,16 +66,8 @@ class Flow::Publisher::Zip :isa(Flow::Publisher) {
         # Try to emit any remaining pairs from buffered values
         $self->try_emit();
 
-        # Complete downstream when any source completes (can't form more pairs)
-        # Use double next_tick to ensure all pending offers are processed first
-        if (!$downstream_completed) {
-            $downstream_completed = 1;
-            $self->executor->next_tick(sub {
-                $self->executor->next_tick(sub {
-                    $downstream_subscription->on_completed if $downstream_subscription;
-                });
-            });
-        }
+        # Check if we should complete (after all emissions are done)
+        $self->check_for_completion();
     }
 
     method try_emit {
@@ -110,6 +102,33 @@ class Flow::Publisher::Zip :isa(Flow::Publisher) {
 
         # Check if we can emit more
         $self->try_emit();
+    }
+
+    method check_for_completion {
+        # Don't complete if no source has finished yet
+        return unless $any_completed;
+
+        # Don't complete if we've already completed
+        return if $downstream_completed;
+
+        # Check if any buffer still has items (can still form pairs)
+        for my $buffer (@buffers) {
+            return if @$buffer > 0;
+        }
+
+        # All buffers are empty and at least one source completed
+        # Safe to complete now - all possible pairs have been emitted
+        $downstream_completed = 1;
+
+        # Use double next_tick to ensure all pending offer/drain cycles complete
+        # Tick 1: Allow any pending drain_buffer to run
+        # Tick 2: Allow any pending on_next to run
+        # Tick 3: Then signal completion
+        $self->executor->next_tick(sub {
+            $self->executor->next_tick(sub {
+                $downstream_subscription->on_completed if $downstream_subscription;
+            });
+        });
     }
 }
 

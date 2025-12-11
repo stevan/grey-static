@@ -291,7 +291,9 @@ subtest 'zip - with operations' => sub {
     $pub1->close;
     $pub2->close;
 
-    is_deeply(\@results, [13, 16, 19], 'zip works with operations');
+    # Pairs: (1,10)=11, (2,11)=13, (3,12)=15, (4,13)=17, (5,14)=19
+    # Filter > 15: only 17 and 19 pass
+    is_deeply(\@results, [17, 19], 'zip works with operations');
 };
 
 ## -------------------------------------------------------------------------

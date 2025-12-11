@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Flow combining publishers** - Coordinate multiple reactive publishers
+  - **Flow::Publishers->merge()** - Merge multiple publishers, emit from any as soon as available
+  - **Flow::Publishers->concat()** - Concatenate publishers sequentially
+  - **Flow::Publishers->zip()** - Pair corresponding elements from multiple publishers with combiner function
+  - All combining publishers support executor chaining for proper async coordination
+  - State-based completion logic ensures all buffered values are emitted before completion
+  - Full integration with Flow operations (map, filter, take, etc.)
+  - Comprehensive test coverage (15 tests, all passing)
+
 - **datatypes::collections** - Immutable collection classes with functional operations
   - **List** - Ordered collection with indexed access, map, grep, reduce, find, any, all, none
   - **Stack** - LIFO (Last-In-First-Out) collection with push/pop/peek
@@ -43,6 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adequate performance for typical use cases (<1000 concurrent timers)
 
 ### Fixed
+- **Flow combining publishers executor chaining** - Fixed executor coordination for merge/concat/zip
+  - Root cause: Combining publisher subscribers weren't chaining their source executors
+  - Solution: Added `$subscription->executor->set_next($merge_subscription->executor)` pattern
+  - Result: Proper async event coordination across multiple publishers
+
+- **Flow::Publisher::Zip completion timing** - Fixed premature completion race condition
+  - Root cause: Completion signal raced with 2-tick async value delivery
+  - Solution: State-based `check_for_completion()` method that only completes after buffers are empty
+  - Result: All buffered pairs emitted before stream completion
+
 - **Promise flattening** - Fixed deeply nested promise resolution (Promise → Promise → Promise → Value)
 - **Promise timeout chaining** - timeout() no longer creates intermediate promises, works correctly in chains
 
