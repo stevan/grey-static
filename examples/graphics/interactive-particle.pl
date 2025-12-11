@@ -37,10 +37,16 @@ my $state = {
     ay => 0,
 };
 
+my ($accelerate, $friction, $speed) = (
+    $ARGV[0] // 1,
+    $ARGV[1] // 1,
+    $ARGV[2] // 1,
+);
+
 # Constants
-my $ACCELERATION = 100;  # Pixels per second squared
-my $FRICTION = 0.95;     # Velocity dampening
-my $MAX_SPEED = 50;      # Maximum velocity
+my $ACCELERATION = $accelerate * 100;  # Pixels per second squared
+my $FRICTION     = $friction  * 0.95;  # Velocity dampening
+my $MAX_SPEED    = $speed     *   50;  # Maximum velocity
 
 # Input handlers using Consumer
 my $keys = ArrowKeys(
