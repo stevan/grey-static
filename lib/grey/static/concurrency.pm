@@ -32,6 +32,23 @@ sub import {
             # Load the Flow classes
             load_module('Flow');
         }
+        elsif ($subfeature eq 'actor') {
+            # Add the actor directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/concurrency/actor';
+
+            # Load the Actor classes (Timer first as foundation)
+            load_module('Actor::Timer');
+
+            # TODO: Add more actor classes as they are ported:
+            # load_module('Actor');
+            # load_module('ActorSystem');
+            # load_module('Actor::Props');
+            # load_module('Actor::Ref');
+            # load_module('Actor::Context');
+            # load_module('Actor::Behavior');
+            # load_module('Actor::Message');
+            # load_module('Actor::Mailbox');
+        }
         else {
             die "Unknown concurrency subfeature: $subfeature";
         }
