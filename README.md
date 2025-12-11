@@ -16,6 +16,7 @@ grey::static is a modern Perl module loader that provides carefully curated "fea
 - **datatypes::collections** - Immutable collections (List, Stack, Queue, Set, Map) with functional operations
 - **datatypes::util** - Option (Some/None) and Result (Ok/Error) types
 - **tty::ansi** - Terminal control (colors, cursor, screen, mouse)
+- **tty::graphics** - Terminal graphics with shader-based rendering and Matrix-backed sprites
 - **time::stream** - Time-based streams (epoch, monotonic, delta)
 - **mop** - Meta-Object Protocol for package introspection
 - **logging** - Debug logging with colorization and automatic depth tracking
@@ -197,6 +198,87 @@ $promise->timeout(50, $scheduled)
 Promise->delay("Hello", 10, $scheduled)
     ->then(sub ($msg) { say $msg });
 $scheduled->run();
+```
+
+### Terminal Graphics
+
+```perl
+use grey::static qw[ tty::graphics datatypes::numeric ];
+
+# Create a shader-based animation
+my $shader = Graphics::Shader->new(
+    height => 60,
+    width => 120,
+    coord_system => Graphics::Shader->CENTERED,
+    shader => sub ($point, $time) {
+        my ($x, $y) = $point->xy;
+        my $d = distance($x, $y);
+        return Graphics::Color->new(
+            r => smoothstep(-1, 1, sin($d * 10 - $time * 3)),
+            g => 0.5,
+            b => 0.8,
+        );
+    }
+);
+
+$shader->clear_screen;
+$shader->hide_cursor;
+$shader->draw(time);
+
+# Create sprites with Matrix-backed storage
+my $sprite = Graphics::Sprite->new(
+    top => 10,
+    left => 20,
+    bitmap => [
+        [ Graphics::Color->new(r => 1, g => 0, b => 0) ],
+        [ Graphics::Color->new(r => 0, g => 1, b => 0) ],
+    ]
+);
+
+$sprite->flip;    # Vertical flip
+$sprite->mirror;  # Horizontal flip
+```
+
+### Interactive Event Loops
+
+Combine graphics with time::stream for game loops:
+
+```perl
+use grey::static qw[ tty::graphics time::stream functional ];
+
+my $state = { x => 60, y => 30, vx => 0, vy => 0 };
+
+# Keyboard input with Consumer callbacks
+my $keys = ArrowKeys(
+    on_up    => Consumer->new(f => sub { $state->{vy} -= 10 }),
+    on_down  => Consumer->new(f => sub { $state->{vy} += 10 }),
+    on_left  => Consumer->new(f => sub { $state->{vx} -= 10 }),
+    on_right => Consumer->new(f => sub { $state->{vx} += 10 }),
+);
+
+my $shader = Shader(
+    height => 60, width => 120,
+    shader => sub ($p, $t) {
+        my $d = distance($p->x - $state->{x}, $p->y - $state->{y});
+        return $d < 5
+            ? Color(r => 1, g => 0, b => 0)
+            : Color(r => 0, g => 0, b => 0.1);
+    }
+);
+
+# Event loop using time::stream
+$keys->turn_echo_off;
+$shader->clear_screen;
+
+Time->of_delta()
+    ->peek(sub ($dt) { $keys->capture_keypress })      # Input
+    ->peek(sub ($dt) { update_physics($state, $dt) })  # Update
+    ->peek(sub ($dt) { $shader->draw(time) })          # Render
+    ->sleep_for(0.016)                                 # 60 FPS
+    ->take(3600)
+    ->foreach(Consumer->new(f => sub { }));
+
+$keys->turn_echo_on;
 ```
 
 ### Numeric Datatypes

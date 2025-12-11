@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **tty::graphics** - Terminal graphics with shader-based rendering and sprite system
+  - **Graphics::Shader** - Shader-based terminal rendering engine
+    - Functional shader programming: define color computation per pixel
+    - Dual coordinate systems: TOP_LEFT (pixel) and CENTERED (normalized -1 to 1)
+    - Uses Unicode half-block (▀) for efficient 2-pixel-per-character rendering
+    - Full 24-bit RGB color support via ANSI escape codes
+    - Integrates with tty::ansi for all terminal control operations
+  - **Graphics::Sprite** - 2D bitmap sprites with Matrix-backed storage
+    - Matrix-based storage: three separate R, G, B matrices for efficient operations
+    - Dual creation modes: traditional bitmap (Color arrays) or direct Matrix construction
+    - Transformations: flip() (vertical), mirror() (horizontal) with state tracking
+    - Conversion methods: to_matrices(), to_bitmap() for flexible data exchange
+    - Full integration with datatypes::numeric Matrix class
+  - **Graphics::Point** - 2D coordinate representation with distance calculations
+  - **Graphics::Color** - RGB color (0-1 normalized) with equality and cloning
+  - **Graphics::Tools::ArrowKeys** - Non-blocking keyboard input with Consumer integration
+    - Flexible callback patterns: per-direction consumers (on_up, on_down, on_left, on_right)
+    - Unified event consumer (on_key) receives all arrow key events
+    - Full integration with functional::Consumer for composable input handling
+    - Non-blocking polling via Term::ReadKey
+    - Chainable methods for terminal mode control
+  - **Utility functions** - Graphics programming helpers (fract, distance, clamp, smooth, smoothstep, mix)
+  - **Event loop patterns** - Comprehensive integration with time::stream
+    - Pattern 1: Polling loop with delta time (recommended for games/animations)
+    - Pattern 2: State machine with consumers (menu systems, turn-based)
+    - Pattern 3: Reactive Flow integration (async coordination)
+    - Pattern 4: Unified stream pipeline (visualizations)
+    - Complete pattern documentation with examples and performance tips
+  - All graphics functions exported lexically via export_lexically
+  - Comprehensive test coverage (46 tests across 7 test files, all passing)
+  - Examples: simple-gradient.pl (shader demo), interactive-particle.pl (event loop with physics)
+  - Documentation: Full POD for all classes, integration plan, event loop patterns guide
+
 - **Flow combining publishers** - Coordinate multiple reactive publishers
   - **Flow::Publishers->merge()** - Merge multiple publishers, emit from any as soon as available
   - **Flow::Publishers->concat()** - Concatenate publishers sequentially

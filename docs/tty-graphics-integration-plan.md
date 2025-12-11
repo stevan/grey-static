@@ -474,9 +474,9 @@ my $dist = distance($p1, $p2);  # Utility function
 |-------|--------|------------|-----------------|-------|
 | Phase 1 | **COMPLETED** | 2025-12-11 | 2025-12-11 | All core classes ported, all tests passing |
 | Phase 2 | **COMPLETED** | 2025-12-11 | 2025-12-11 | Sprite system with Matrix integration complete |
-| Phase 3 | Not Started | - | - | - |
-| Phase 4 | Not Started | - | - | - |
-| Phase 5 | Not Started | - | - | - |
+| Phase 3 | **COMPLETED** | 2025-12-11 | 2025-12-11 | ArrowKeys + event loop patterns complete |
+| Phase 4 | Deferred | - | - | Advanced features (optional) |
+| Phase 5 | Deferred | - | - | Additional examples (optional) |
 
 ---
 
@@ -523,6 +523,32 @@ my $dist = distance($p1, $p2);  # Utility function
   - Matrix API: `row_at()` returns list, not arrayref
   - Removed overzealous transparency check (black pixels are valid)
   - Matrix requires `datatypes::numeric` to be loaded by user
+
+### 2025-12-11: Phase 3 Completed ✓
+- Successfully implemented Graphics::Tools::ArrowKeys with Consumer integration
+- Simplified API without role dependencies (new module, no back-compat needed)
+- Flexible callback patterns:
+  - Direction-specific consumers (on_up, on_down, on_left, on_right)
+  - Unified event consumer (on_key) receives all arrow key events
+  - Can combine both patterns for maximum flexibility
+- Non-blocking keyboard polling via Term::ReadKey
+- Chainable methods for terminal state management
+- Full integration with functional::Consumer
+- Created comprehensive test suite (8 subtests in 025-graphics-arrowkeys.t)
+- All tests passing (46 tests total across all graphics modules)
+- **Event Loop Integration Discovery:**
+  - Explored 4 distinct event loop patterns
+  - Pattern 1 (Polling with Delta Time) is PERFECT for game loops
+  - time::stream integration works beautifully
+  - Created comprehensive pattern documentation (tty-graphics-event-loop-patterns.md)
+  - Built working interactive example (interactive-particle.pl) with:
+    - Physics simulation (velocity, acceleration, friction, collisions)
+    - Real-time rendering with delta time
+    - Consumer-based input handling
+    - Stream-based game loop architecture
+- Key insight: grey::static features compose into complete game engine patterns!
+- Mouse integration deferred (not needed for core functionality)
+- Roles not needed (were just interfaces in original)
 
 ---
 

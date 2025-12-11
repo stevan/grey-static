@@ -9,6 +9,7 @@ use Graphics::Color  ();
 use Graphics::Shader ();
 use Graphics::Sprite ();
 use Graphics::Tools::Shaders ();
+use Graphics::Tools::ArrowKeys ();
 
 # Import from_matrices from Sprite
 require Graphics::Sprite;
@@ -20,6 +21,7 @@ sub import {
         '&Color'      => sub { Graphics::Color->new(@_) },
         '&Shader'     => sub { Graphics::Shader->new(@_) },
         '&Sprite'     => sub { Graphics::Sprite->new(@_) },
+        '&ArrowKeys'  => sub { Graphics::Tools::ArrowKeys->new(@_) },
 
         # Graphics utility functions from Tools::Shaders
         '&fract'      => \&Graphics::Tools::Shaders::fract,
