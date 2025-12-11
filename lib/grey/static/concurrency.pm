@@ -45,23 +45,30 @@ sub import {
             load_module('Actor::Behavior');
             load_module('Actor::Supervisors::Supervisor');
             load_module('Actor::Supervisors::Stop');
+            load_module('Actor::Supervisors::Resume');
+            load_module('Actor::Supervisors::Retry');
+            load_module('Actor::Supervisors::Restart');
             load_module('Actor::Props');
             load_module('Actor::Ref');
             load_module('Actor::Context');
             load_module('Actor');
 
-            # TODO Phase 3: System infrastructure
-            # load_module('Actor::Mailbox');
-            # load_module('ActorSystem');
-            # load_module('Actor::Signals::Started');
-            # load_module('Actor::Signals::Stopping');
-            # load_module('Actor::Signals::Stopped');
-            # load_module('Actor::Signals::Terminated');
-            # load_module('Actor::Signals::Ready');
-            # load_module('Actor::Signals::Restarting');
-            # load_module('Actor::Supervisors::Resume');
-            # load_module('Actor::Supervisors::Retry');
-            # load_module('Actor::Supervisors::Restart');
+            # Phase 3: Signals
+            load_module('Actor::Signals::Signal');
+            load_module('Actor::Signals::Started');
+            load_module('Actor::Signals::Stopping');
+            load_module('Actor::Signals::Stopped');
+            load_module('Actor::Signals::Terminated');
+            load_module('Actor::Signals::Ready');
+            load_module('Actor::Signals::Restarting');
+
+            # Phase 3: Mailbox and System
+            load_module('Actor::Mailbox');
+            load_module('ActorSystem::Actors::DeadLetterQueue');
+            load_module('ActorSystem::Actors::Users');
+            load_module('ActorSystem::Actors::System');
+            load_module('ActorSystem::Actors::Root');
+            load_module('ActorSystem');
         }
         else {
             die "Unknown concurrency subfeature: $subfeature";
