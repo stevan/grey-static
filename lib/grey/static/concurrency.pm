@@ -36,18 +36,32 @@ sub import {
             # Add the actor directory to @INC
             use lib File::Basename::dirname(__FILE__) . '/concurrency/actor';
 
-            # Load the Actor classes (Timer first as foundation)
+            # Load the Actor classes
+            # Phase 1: Timer foundation
             load_module('Actor::Timer');
 
-            # TODO: Add more actor classes as they are ported:
-            # load_module('Actor');
-            # load_module('ActorSystem');
-            # load_module('Actor::Props');
-            # load_module('Actor::Ref');
-            # load_module('Actor::Context');
-            # load_module('Actor::Behavior');
-            # load_module('Actor::Message');
+            # Phase 2: Core actor classes
+            load_module('Actor::Message');
+            load_module('Actor::Behavior');
+            load_module('Actor::Supervisors::Supervisor');
+            load_module('Actor::Supervisors::Stop');
+            load_module('Actor::Props');
+            load_module('Actor::Ref');
+            load_module('Actor::Context');
+            load_module('Actor');
+
+            # TODO Phase 3: System infrastructure
             # load_module('Actor::Mailbox');
+            # load_module('ActorSystem');
+            # load_module('Actor::Signals::Started');
+            # load_module('Actor::Signals::Stopping');
+            # load_module('Actor::Signals::Stopped');
+            # load_module('Actor::Signals::Terminated');
+            # load_module('Actor::Signals::Ready');
+            # load_module('Actor::Signals::Restarting');
+            # load_module('Actor::Supervisors::Resume');
+            # load_module('Actor::Supervisors::Retry');
+            # load_module('Actor::Supervisors::Restart');
         }
         else {
             die "Unknown concurrency subfeature: $subfeature";
