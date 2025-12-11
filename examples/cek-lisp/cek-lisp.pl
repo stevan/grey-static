@@ -2,7 +2,7 @@
 use v5.42;
 use experimental qw[ class ];
 
-use lib '../lib';
+use lib '../../lib';
 use grey::static qw[ concurrency::util ];
 
 # =============================================================================
@@ -357,7 +357,20 @@ class CEK {
         }
 
         if ($type eq 'primitive') {
-            # Primitives can return Value or Promise<Value>
+            # Special handling for call/cc
+            if ($fn->name eq 'call/cc') {
+                my $proc = $args->[0];
+                die "call/cc: argument must be a procedure"
+                    unless $proc->type eq 'lambda' || $proc->type eq 'primitive';
+
+                # Reify the current continuation as a value
+                my $cont = ContVal->new(kont => $kont);
+
+                # Apply the procedure to the reified continuation
+                return $self->apply_fn($proc, [$cont], $env, $kont);
+            }
+
+            # Normal primitives can return Value or Promise<Value>
             my $result = $fn->impl->($args, $env, $kont);
 
             if ($result isa Promise) {
@@ -561,10 +574,10 @@ class Parser {
         # List
         if ($token eq '(') {
             my @elements;
-            while ($tokens->[0] ne ')') {
-                die "unexpected EOF" if @$tokens == 0;
+            while (@$tokens && $tokens->[0] ne ')') {
                 push @elements, $self->parse($tokens);
             }
+            die "unexpected EOF: missing ')'" if @$tokens == 0;
             shift @$tokens;  # remove ')'
             return { type => 'list', elements => \@elements };
         }
@@ -791,33 +804,42 @@ sub make_primitives($executor) {
             NIL();
         }),
 
-        # call/cc - creates continuation value
+        # call/cc - handled specially in apply_fn, but we need the primitive entry
         'call/cc' => PrimVal->new(name => 'call/cc', impl => sub ($args, $env, $kont) {
-            my $proc = $args->[0];
-            my $cont = ContVal->new(kont => $kont);
-            # Return a state that applies proc to cont
-            # But we need to return a value, so we cheat a bit here
-            # by making this a special case in apply_fn
-            die "call/cc: argument must be a procedure"
-                unless $proc->type eq 'lambda' || $proc->type eq 'primitive';
-
-            # This is a hack - we return a special marker
-            return { __call_cc__ => 1, proc => $proc, cont => $cont };
+            die "call/cc should be handled in apply_fn";
         }),
 
-        # Async primitive example: delay
+        # Async primitive: delay - returns value after ms milliseconds
+        # Usage: (delay ms value) - waits ms then returns value
         'delay' => PrimVal->new(name => 'delay', impl => sub ($args, $, $) {
             my $ms = $args->[0]->n;
-            my $val = $args->[1];
+            my $val = @$args > 1 ? $args->[1] : NIL();
             my $promise = Promise->new(executor => $executor);
 
-            # Use ScheduledExecutor for real delays (if available)
-            # For now, just resolve immediately
-            $executor->next_tick(sub {
+            # Use ScheduledExecutor for real-time delays
+            $executor->schedule_delayed(sub {
                 $promise->resolve($val);
-            });
+            }, $ms);
 
             return $promise;
+        }),
+
+        # sleep - delay that returns nil (for side-effect timing)
+        'sleep' => PrimVal->new(name => 'sleep', impl => sub ($args, $, $) {
+            my $ms = $args->[0]->n;
+            my $promise = Promise->new(executor => $executor);
+
+            $executor->schedule_delayed(sub {
+                $promise->resolve(NIL());
+            }, $ms);
+
+            return $promise;
+        }),
+
+        # now - returns current time in milliseconds (for timing)
+        'now' => PrimVal->new(name => 'now', impl => sub ($args, $, $) {
+            require Time::HiRes;
+            NumVal->new(n => int(Time::HiRes::time() * 1000));
         }),
     };
 }
@@ -827,7 +849,7 @@ sub make_primitives($executor) {
 # =============================================================================
 
 sub repl {
-    my $executor = Executor->new;
+    my $executor = ScheduledExecutor->new;  # Use ScheduledExecutor for delay/sleep
     my $parser   = Parser->new;
     my $cek      = CEK->new(executor => $executor, trace => 0);
 
@@ -836,7 +858,7 @@ sub repl {
 
     say "CEK Lisp - Perl Edition";
     say "Type 'quit' to exit, 'trace' to toggle tracing";
-    say "Features: lambda, if, let, define, quote, call/cc";
+    say "Features: lambda, if, let, define, quote, call/cc, delay, sleep, now";
     say "";
 
     print "> ";
@@ -894,27 +916,43 @@ sub repl {
 if (@ARGV && $ARGV[0] eq '--test') {
     say "Running tests...";
 
-    my $executor = Executor->new;
+    my $executor = ScheduledExecutor->new;  # Use ScheduledExecutor for delay/sleep
     my $parser   = Parser->new;
     my $cek      = CEK->new(executor => $executor);
     my $prims    = make_primitives($executor);
     my $env      = Env->new(bindings => $prims);
 
     my @tests = (
+        # Basic arithmetic
         ['(+ 1 2 3)', '6'],
         ['(* 2 3 4)', '24'],
         ['(- 10 3)', '7'],
+
+        # Conditionals
         ['(if (= 1 1) 42 0)', '42'],
         ['(if (= 1 2) 42 0)', '0'],
+
+        # Lambda and application
         ['((lambda (x) (* x x)) 5)', '25'],
         ['((lambda (x y) (+ x y)) 3 4)', '7'],
         ['(let ((x 10) (y 20)) (+ x y))', '30'],
+
+        # Lists
         ['(car (cons 1 2))', '1'],
         ['(cdr (cons 1 2))', '2'],
         ['(null? nil)', '1'],
         ['(null? 42)', 'nil'],
         ["'(1 2 3)", '(1 2 3)'],
         ['(car (list 1 2 3))', '1'],
+
+        # call/cc - basic escape
+        ['(+ 1 (call/cc (lambda (k) (+ 2 (k 10)))))', '11'],
+
+        # call/cc - without invoking continuation
+        ['(call/cc (lambda (k) 42))', '42'],
+
+        # call/cc - early return pattern
+        ['(+ 10 (call/cc (lambda (return) (+ 1 (return 5)))))', '15'],
     );
 
     my $passed = 0;
