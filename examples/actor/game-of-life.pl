@@ -468,10 +468,15 @@ class World :isa(Actor) {
                 $generation++;
                 @pending_reports = ();
 
-                # Schedule next tick
-                $context->schedule(after => $tick_interval, callback => sub {
+                if ($tick_interval < 0.01) {
+                    # less than 60FPS, don't bother scheduling ...
                     $context->self->send(Tick->new);
-                });
+                } else {
+                    # Schedule next tick
+                    $context->schedule(after => $tick_interval, callback => sub {
+                        $context->self->send(Tick->new);
+                    });
+                }
             }
             return true;
         }
@@ -507,7 +512,7 @@ my $system;
 $SIG{INT} = sub {
     print "\e[?25h\e[0m";
     print "\n\nShutting down...\n";
-    $system->shutdown if $system;
+    #$system->shutdown if $system;
     exit 0;
 };
 
