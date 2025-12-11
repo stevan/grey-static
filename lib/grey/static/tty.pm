@@ -24,6 +24,14 @@ sub import {
             load_module('ANSI');
             ANSI->import();
         }
+        elsif ($subfeature eq 'graphics') {
+            # Add the graphics directory to @INC
+            use lib File::Basename::dirname(__FILE__) . '/tty/graphics';
+
+            # Load the Graphics module
+            load_module('Graphics');
+            Graphics->import();
+        }
         else {
             die "Unknown tty subfeature: $subfeature";
         }
