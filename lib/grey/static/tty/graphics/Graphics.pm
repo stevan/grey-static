@@ -7,7 +7,11 @@ use builtin      qw[ export_lexically ];
 use Graphics::Point  ();
 use Graphics::Color  ();
 use Graphics::Shader ();
+use Graphics::Sprite ();
 use Graphics::Tools::Shaders ();
+
+# Import from_matrices from Sprite
+require Graphics::Sprite;
 
 sub import {
     export_lexically(
@@ -15,6 +19,7 @@ sub import {
         '&Point'      => sub { Graphics::Point->new(@_) },
         '&Color'      => sub { Graphics::Color->new(@_) },
         '&Shader'     => sub { Graphics::Shader->new(@_) },
+        '&Sprite'     => sub { Graphics::Sprite->new(@_) },
 
         # Graphics utility functions from Tools::Shaders
         '&fract'      => \&Graphics::Tools::Shaders::fract,
@@ -23,6 +28,9 @@ sub import {
         '&smooth'     => \&Graphics::Tools::Shaders::smooth,
         '&smoothstep' => \&Graphics::Tools::Shaders::smoothstep,
         '&mix'        => \&Graphics::Tools::Shaders::mix,
+
+        # Sprite utility function
+        '&from_matrices' => \&Graphics::Sprite::from_matrices,
     );
 }
 

@@ -473,7 +473,7 @@ my $dist = distance($p1, $p2);  # Utility function
 | Phase | Status | Start Date | Completion Date | Notes |
 |-------|--------|------------|-----------------|-------|
 | Phase 1 | **COMPLETED** | 2025-12-11 | 2025-12-11 | All core classes ported, all tests passing |
-| Phase 2 | Not Started | - | - | - |
+| Phase 2 | **COMPLETED** | 2025-12-11 | 2025-12-11 | Sprite system with Matrix integration complete |
 | Phase 3 | Not Started | - | - | - |
 | Phase 4 | Not Started | - | - | - |
 | Phase 5 | Not Started | - | - | - |
@@ -503,6 +503,26 @@ my $dist = distance($p1, $p2);  # Utility function
   - Fixed `fract()` to use `floor()` instead of `int()` for correct negative number handling
   - Fixed ANSI function access by loading ANSI modules directly in Shader.pm
 - Integration complete: Can now use `use grey::static qw[ tty::graphics ];`
+
+### 2025-12-11: Phase 2 Completed ✓
+- Successfully implemented Graphics::Sprite with Matrix-backed storage
+- Architecture: Three separate matrices (R, G, B) for efficient channel operations
+- Sprite creation supports both:
+  - Traditional bitmap format (array of arrays of Graphics::Color)
+  - Direct Matrix construction (r_matrix, g_matrix, b_matrix parameters)
+- Implemented all transformations:
+  - `flip()` - Vertical flip using Matrix row reversal
+  - `mirror()` - Horizontal flip using Matrix column reversal
+- Matrix conversion methods:
+  - `to_matrices()` - Export sprite as three Matrix objects
+  - `to_bitmap()` - Convert back to traditional bitmap format
+- Sprite rendering fully functional with `draw_at($point)` method
+- Created comprehensive test suite (8 subtests in 023-graphics-sprite.t)
+- All tests passing (33 tests total across all graphics modules)
+- Fixed issues:
+  - Matrix API: `row_at()` returns list, not arrayref
+  - Removed overzealous transparency check (black pixels are valid)
+  - Matrix requires `datatypes::numeric` to be loaded by user
 
 ---
 
