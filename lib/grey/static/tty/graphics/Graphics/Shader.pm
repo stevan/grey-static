@@ -74,7 +74,7 @@ class Graphics::Shader {
     method enable_alt_buffer  { print ANSI::Screen::enable_alt_buf()  }
     method disable_alt_buffer { print ANSI::Screen::disable_alt_buf() }
 
-    method draw ($t) {
+    method draw ($t, $origin=undef) {
         my @out;
         foreach my ($y1, $y2) ( @rows ) {
             push @out => ((map {
@@ -90,7 +90,11 @@ class Graphics::Shader {
             $newline);
         }
 
-        print ANSI::Cursor::home_cursor() . (join '' => @out) . ANSI::Color::format_reset();
+        print((defined $origin
+                ? ANSI::Cursor::format_move_cursor($origin->x, $origin->y)
+                : ANSI::Cursor::home_cursor())
+            . (join '' => @out)
+            . ANSI::Color::format_reset());
     }
 
 }

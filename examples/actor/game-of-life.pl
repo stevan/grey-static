@@ -467,19 +467,24 @@ class World :isa(Actor) {
             }
 
             # Render using shader
-            $shader->draw($generation);
-
-            # render stats ..
-            my $actor_count = ($width * $height) + 1;  # cells + world
-            $self->display_stats(
-                generation   => $generation,
-                live_count   => $live_count,
-                actor_count  => $actor_count,
-                msg_count    => $message_count,
-                msgs_per_sec => $msgs_per_sec,
-                fps          => $current_fps,
-                target_fps   => 1 / $tick_interval,
+            $shader->draw(
+                $generation,
+                Graphics::Point->new( x => 0, y => 0 )
             );
+
+            $self->display_stats(
+                Graphics::Point->new( x => int($height / 2) + 2, y => 2 ),
+                (
+                    generation   => $generation,
+                    live_count   => $live_count,
+                    actor_count  => ($width * $height) + 1,  # cells + world
+                    msg_count    => $message_count,
+                    msgs_per_sec => $msgs_per_sec,
+                    fps          => $current_fps,
+                    target_fps   => 1 / $tick_interval,
+                )
+            );
+
 
             # Compute next state for each cell
             for my $y (0 .. $height - 1) {
@@ -514,18 +519,16 @@ class World :isa(Actor) {
         }
     }
 
-    method display_stats (%stats) {
-        # Status bar with enhanced metrics
-        say "\n",sprintf(
-            "Gen: %d | Live: %d | Actors: %d | Msgs: %d (%.0f/s) | FPS: %.1f (target: %.0f)",
-            $stats{generation},
-            $stats{live_count},
-            $stats{actor_count},
-            $stats{msg_count},
-            $stats{msgs_per_sec},
-            $stats{fps},
-            $stats{target_fps},
-        ),"\n";
+    method display_stats ($origin, %stats) {
+        my $line = 0;
+        print ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf '    Pattern : %s     ' => $initial_pattern),   ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf 'Generations : %d     ' => $stats{generation}),   ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf '      alive : %d     ' => $stats{live_count}),   ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf 'ActorSystem : %d     ' => $stats{actor_count}),  ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf '  msg count : %d     ' => $stats{msg_count}),    ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf '       ~MPS : %.0f/s ' => $stats{msgs_per_sec}), ANSI::Cursor::format_move_cursor($origin->x + $line++, $origin->y),
+            (sprintf '       ~FPS : %.1f/s ' => $stats{fps})
     }
 }
 
@@ -550,7 +553,7 @@ say "  Random:     random";
 say "";
 say "Press Ctrl+C to quit";
 say "";
-sleep 2;
+sleep 1;
 
 my $system;
 
