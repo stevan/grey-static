@@ -9,7 +9,12 @@ use open ':std', ':encoding(UTF-8)';
 use FindBin;
 use lib "$FindBin::Bin/../../lib";
 
-use grey::static qw[ concurrency::util concurrency::actor tty::graphics ];
+use grey::static qw[
+    concurrency::util
+    concurrency::actor
+    tty::ansi
+    tty::graphics
+];
 use Time::HiRes qw[ time ];
 
 # =============================================================================
@@ -104,7 +109,7 @@ class World :isa(Actor) {
     field $initial_pattern :param = 'glider';
 
     field @cells;
-    field $shader;
+    field $shader :reader;
     field $generation = 0;
     field $live_count = 0;
 
@@ -115,10 +120,16 @@ class World :isa(Actor) {
     field @grid;
     field @ages;
 
-    # FPS tracking
-    field $last_render_time;
+    # FPS tracking - using frame count over time window
+    field $fps_window_start;
+    field $fps_frame_count = 0;
     field $current_fps = 0;
-    field @fps_samples;
+
+    # Message count tracking - using message count over time window
+    field $message_count = 0;
+    field $mps_window_start;
+    field $mps_msg_count_start = 0;
+    field $msgs_per_sec = 0;
 
     # Age-based colors for shader
     my @AGE_COLORS = (
@@ -158,6 +169,8 @@ class World :isa(Actor) {
                     }
                 }
             );
+
+
 
             $shader->enable_alt_buffer;
             $shader->hide_cursor;
@@ -392,95 +405,127 @@ class World :isa(Actor) {
         }
     }
 
-    method receive ($context, $message) {
-        if ($message isa Tick) {
-            # Query all cells for their current state
-            @pending_reports = ();
+    method tick :Receive(Tick) ($context, $message) {
+        $message_count++;  # Count incoming Tick message
 
+        # Query all cells for their current state
+        @pending_reports = ();
+
+        for my $y (0 .. $height - 1) {
+            for my $x (0 .. $width - 1) {
+                $cells[$y][$x]->send(QueryState->new(
+                    reply_to   => $context->self,
+                    generation => $generation,
+                ));
+                $message_count++;  # Count outgoing QueryState message
+            }
+        }
+    }
+
+    method report_state :Receive(ReportState) ($context, $message) {
+        push @pending_reports => $message;
+        $message_count++;  # Count incoming ReportState message
+
+        if (@pending_reports == $expected_reports) {
+            # Calculate FPS and MPS using time windows
+            my $now = time;
+            $fps_frame_count++;
+
+            # Initialize windows on first frame
+            $fps_window_start //= $now;
+            $mps_window_start //= $now;
+
+            # Calculate FPS over a rolling window (update every 0.5 seconds)
+            my $fps_elapsed = $now - $fps_window_start;
+            if ($fps_elapsed >= 0.5) {
+                $current_fps = $fps_frame_count / $fps_elapsed;
+                $fps_window_start = $now;
+                $fps_frame_count = 0;
+            }
+
+            # Calculate MPS over a rolling window (update every 0.5 seconds)
+            my $mps_elapsed = $now - $mps_window_start;
+            if ($mps_elapsed >= 0.5) {
+                my $msgs_in_window = $message_count - $mps_msg_count_start;
+                $msgs_per_sec = $msgs_in_window / $mps_elapsed;
+                $mps_window_start = $now;
+                $mps_msg_count_start = $message_count;
+            }
+
+            # Build grid for rendering
+            my %alive_cells;
+            $live_count = 0;
+
+            for my $report (@pending_reports) {
+                my ($x, $y, $alive, $age) = ($report->x, $report->y, $report->alive, $report->age);
+                $grid[$y][$x] = $alive;
+                $ages[$y][$x] = $age;
+                if ($alive) {
+                    $alive_cells{"$x,$y"} = 1;
+                    $live_count++;
+                }
+            }
+
+            # Render using shader
+            $shader->draw($generation);
+
+            # render stats ..
+            my $actor_count = ($width * $height) + 1;  # cells + world
+            $self->display_stats(
+                generation   => $generation,
+                live_count   => $live_count,
+                actor_count  => $actor_count,
+                msg_count    => $message_count,
+                msgs_per_sec => $msgs_per_sec,
+                fps          => $current_fps,
+                target_fps   => 1 / $tick_interval,
+            );
+
+            # Compute next state for each cell
             for my $y (0 .. $height - 1) {
                 for my $x (0 .. $width - 1) {
-                    $cells[$y][$x]->send(QueryState->new(
-                        reply_to   => $context->self,
-                        generation => $generation,
+                    my $live_neighbors = 0;
+                    for my $dy (-1, 0, 1) {
+                        for my $dx (-1, 0, 1) {
+                            next if $dx == 0 && $dy == 0;
+                            my $nx = ($x + $dx) % $width;
+                            my $ny = ($y + $dy) % $height;
+                            $live_neighbors++ if $alive_cells{"$nx,$ny"};
+                        }
+                    }
+                    $cells[$y][$x]->send(ComputeNextState->new(
+                        live_neighbors => $live_neighbors
                     ));
                 }
             }
-            return true;
-        }
-        elsif ($message isa ReportState) {
-            push @pending_reports => $message;
 
-            if (@pending_reports == $expected_reports) {
-                # Calculate FPS
-                my $now = time;
-                if (defined $last_render_time) {
-                    my $elapsed = $now - $last_render_time;
-                    my $instant_fps = $elapsed > 0 ? 1 / $elapsed : 0;
+            $generation++;
+            @pending_reports = ();
 
-                    push @fps_samples, $instant_fps;
-                    shift @fps_samples if @fps_samples > 5;
-                    $current_fps = 0;
-                    $current_fps += $_ for @fps_samples;
-                    $current_fps /= @fps_samples;
-                }
-                $last_render_time = $now;
-
-                # Build grid for rendering
-                my %alive_cells;
-                $live_count = 0;
-
-                for my $report (@pending_reports) {
-                    my ($x, $y, $alive, $age) = ($report->x, $report->y, $report->alive, $report->age);
-                    $grid[$y][$x] = $alive;
-                    $ages[$y][$x] = $age;
-                    if ($alive) {
-                        $alive_cells{"$x,$y"} = 1;
-                        $live_count++;
-                    }
-                }
-
-                # Render using shader
-                $shader->draw($generation);
-
-                # Status line
-                print "\n";
-                printf "Gen: %d | Live: %d | Actors: %d | FPS: %.1f\n",
-                    $generation, $live_count, ($width * $height + 1), $current_fps;
-
-                # Compute next state for each cell
-                for my $y (0 .. $height - 1) {
-                    for my $x (0 .. $width - 1) {
-                        my $live_neighbors = 0;
-                        for my $dy (-1, 0, 1) {
-                            for my $dx (-1, 0, 1) {
-                                next if $dx == 0 && $dy == 0;
-                                my $nx = ($x + $dx) % $width;
-                                my $ny = ($y + $dy) % $height;
-                                $live_neighbors++ if $alive_cells{"$nx,$ny"};
-                            }
-                        }
-                        $cells[$y][$x]->send(ComputeNextState->new(
-                            live_neighbors => $live_neighbors
-                        ));
-                    }
-                }
-
-                $generation++;
-                @pending_reports = ();
-
-                if ($tick_interval < 0.01) {
-                    # less than 60FPS, don't bother scheduling ...
+            if ($tick_interval < 0.01) {
+                # less than 60FPS, don't bother scheduling ...
+                $context->self->send(Tick->new);
+            } else {
+                # Schedule next tick
+                $context->schedule(after => $tick_interval, callback => sub {
                     $context->self->send(Tick->new);
-                } else {
-                    # Schedule next tick
-                    $context->schedule(after => $tick_interval, callback => sub {
-                        $context->self->send(Tick->new);
-                    });
-                }
+                });
             }
-            return true;
         }
-        return false;
+    }
+
+    method display_stats (%stats) {
+        # Status bar with enhanced metrics
+        say "\n",sprintf(
+            "Gen: %d | Live: %d | Actors: %d | Msgs: %d (%.0f/s) | FPS: %.1f (target: %.0f)",
+            $stats{generation},
+            $stats{live_count},
+            $stats{actor_count},
+            $stats{msg_count},
+            $stats{msgs_per_sec},
+            $stats{fps},
+            $stats{target_fps},
+        ),"\n";
     }
 }
 
@@ -510,9 +555,11 @@ sleep 2;
 my $system;
 
 $SIG{INT} = sub {
-    print "\e[?25h\e[0m";
+    print ANSI::Screen::disable_alt_buf();
+    print ANSI::Screen::show_cursor();
+    print ANSI::Color::format_reset();
     print "\n\nShutting down...\n";
-    #$system->shutdown if $system;
+    $system->shutdown if $system;
     exit 0;
 };
 
