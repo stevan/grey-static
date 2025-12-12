@@ -6,8 +6,11 @@ use builtin      qw[ export_lexically ];
 
 use Graphics::Point  ();
 use Graphics::Color  ();
+use Graphics::Screen ();
 use Graphics::Shader ();
+use Graphics::BufferedShader ();
 use Graphics::Sprite ();
+use Graphics::Loop   ();
 use Graphics::Tools::Shaders ();
 use Graphics::Tools::ArrowKeys ();
 
@@ -17,11 +20,14 @@ require Graphics::Sprite;
 sub import {
     export_lexically(
         # Core classes
-        '&Point'      => sub { Graphics::Point->new(@_) },
-        '&Color'      => sub { Graphics::Color->new(@_) },
-        '&Shader'     => sub { Graphics::Shader->new(@_) },
-        '&Sprite'     => sub { Graphics::Sprite->new(@_) },
-        '&ArrowKeys'  => sub { Graphics::Tools::ArrowKeys->new(@_) },
+        '&Point'          => sub { Graphics::Point->new(@_) },
+        '&Color'          => sub { Graphics::Color->new(@_) },
+        '&Screen'         => sub { Graphics::Screen->new(@_) },
+        '&Shader'         => sub { Graphics::Shader->new(@_) },
+        '&BufferedShader' => sub { Graphics::BufferedShader->new(@_) },
+        '&Sprite'         => sub { Graphics::Sprite->new(@_) },
+        '&Loop'           => sub { Graphics::Loop->new(@_) },
+        '&ArrowKeys'      => sub { Graphics::Tools::ArrowKeys->new(@_) },
 
         # Graphics utility functions from Tools::Shaders
         '&fract'      => \&Graphics::Tools::Shaders::fract,
